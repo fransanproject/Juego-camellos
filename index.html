@@ -47,7 +47,11 @@
         }
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; }
+      html, body { margin: 0; padding: 0; overscroll-behavior: none; }
+      /* Durante la partida la pantalla queda bloqueada: sin esto, el
+         navegador interpreta el swipe de lanzamiento como un scroll y
+         la página se mueve bajo el dedo. */
+      body.scroll-locked { overflow: hidden; }
       body {
         font-family: "Nunito", system-ui, sans-serif;
         color: var(--ink);
@@ -183,8 +187,8 @@
         background-size: 96px 15px; background-repeat: repeat-x;
         filter: drop-shadow(0 0 4px rgba(255, 190, 80, .85));
       }
-      .board-wrap { position: relative; background: var(--field); }
-      canvas#board { display: block; width: 100%; height: auto; touch-action: none; }
+      .board-wrap { position: relative; background: var(--field); touch-action: none; }
+      canvas#board { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
       .score-pop {
         position: absolute; z-index: 5; pointer-events: none;
         font-family: "Lilita One", cursive; font-size: 2rem; color: var(--gold);
@@ -1075,6 +1079,16 @@
         delete swipes[evt.pointerId];
         draw();
       });
+      /* Bloqueo de scroll durante el lanzamiento: algunos navegadores y
+         webviews no respetan del todo touch-action, así que mientras
+         haya partida se cancela el desplazamiento táctil sobre el
+         tablero (listener no pasivo: sin él, preventDefault no vale). */
+      canvas.addEventListener('touchmove', function (evt) {
+        if (active) evt.preventDefault();
+      }, { passive: false });
+      document.addEventListener('touchmove', function (evt) {
+        if (Object.keys(swipes).length > 0) evt.preventDefault();
+      }, { passive: false });
 
       draw();
       return {
@@ -1083,6 +1097,9 @@
         setActive: function (v) {
           active = !!v;
           if (!active) { gen++; swipes = {}; }
+          // Con partida en curso, la página no se desplaza: el dedo es
+          // solo para lanzar. Al terminar o volver al menú, se libera.
+          document.body.classList.toggle('scroll-locked', active);
           draw();
         },
         isActive: function () { return active; },
