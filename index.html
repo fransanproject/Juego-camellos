@@ -72,8 +72,11 @@
       /* ---------- layout ---------- */
       .layout { display: grid; gap: 16px; grid-template-columns: 1fr; }
       @media (min-width: 920px) {
-        .layout { grid-template-columns: minmax(340px, 460px) 1fr; align-items: start; }
+        .layout { grid-template-columns: minmax(280px, 360px) 1fr; align-items: start; }
         .board-col { position: sticky; top: 14px; }
+        /* El tablero crece hasta ocupar casi todo el alto disponible */
+        .board-wrap { display: flex; justify-content: center; }
+        canvas#board { width: min(100%, calc((100dvh - 150px) * 0.74074)); }
       }
 
       .card {
@@ -85,6 +88,7 @@
 
       /* ---------- status bar ---------- */
       .statusbar {
+        position: relative;
         display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
         padding: 10px 14px; margin-bottom: 16px;
       }
@@ -97,20 +101,30 @@
         box-shadow: 0 3px 0 var(--shadow); white-space: nowrap;
       }
       .icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shadow); }
+      /* Panel de ajustes: cuelga del botón ⚙ de arriba a la derecha y
+         guarda los controles secundarios para liberar la pantalla. */
+      .settings-panel {
+        position: absolute; top: calc(100% + 8px); right: 12px; z-index: 35;
+        display: grid; gap: 8px; min-width: 210px; padding: 10px;
+        background: var(--card); border: 3px solid var(--card-edge);
+        border-radius: 14px; box-shadow: 0 8px 0 var(--shadow);
+      }
+      .settings-panel[hidden] { display: none; }
+      .settings-panel .icon-btn { width: 100%; text-align: left; padding: 9px 12px; }
 
       /* ---------- race track ---------- */
-      .track-card { padding: 12px 14px 8px; margin-bottom: 16px; }
+      .track-card { padding: 10px 12px 6px; margin-bottom: 16px; }
       .track-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px; }
-      .track-head h2 { font-family: "Lilita One", cursive; font-weight: 400; margin: 0; font-size: 1.25rem; }
-      .track-head span { font-weight: 800; color: var(--ink-soft); font-size: .85rem; text-align: right; }
-      .lane { padding: 6px 0 3px; }
+      .track-head h2 { font-family: "Lilita One", cursive; font-weight: 400; margin: 0; font-size: 1.08rem; }
+      .track-head span { font-weight: 800; color: var(--ink-soft); font-size: .8rem; text-align: right; }
+      .lane { padding: 4px 0 2px; }
       .lane + .lane { border-top: 2px dashed var(--track-line); }
       .lane-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
       .lane-name { font-weight: 900; display: inline-flex; gap: 8px; align-items: center; }
       .lane-name .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); }
       .lane-pos { font-weight: 900; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
       .lane-run {
-        position: relative; height: 58px; border-radius: 10px;
+        position: relative; height: 44px; border-radius: 10px;
         background:
           radial-gradient(1.4px 1.4px at 14px 10px, rgba(255, 244, 200, .85) 50%, transparent 52%),
           radial-gradient(1.1px 1.1px at 46px 26px, rgba(255, 255, 255, .55) 50%, transparent 52%),
@@ -121,14 +135,14 @@
         overflow: hidden;
       }
       .finish-flag {
-        position: absolute; right: 5px; top: 3px; font-size: 17px; line-height: 1;
+        position: absolute; right: 5px; top: 3px; font-size: 14px; line-height: 1;
       }
       .finish-label {
         position: absolute; right: 4px; bottom: 2px; font-size: .6rem; font-weight: 900;
         letter-spacing: .12em; color: var(--gold);
       }
       .camel {
-        position: absolute; bottom: 1px; left: 0; width: 58px; height: 58px;
+        position: absolute; bottom: 1px; left: 0; width: 44px; height: 44px;
         transform: translateX(0);
         transition: left .8s cubic-bezier(.45, .05, .35, 1);
         will-change: left;
@@ -163,8 +177,8 @@
       .names input.code-input { text-transform: uppercase; letter-spacing: .3em; font-size: 1.15rem; text-align: center; }
       /* Con muchos corredores (salas online), carriles más compactos */
       .track-card.many .lane { padding: 3px 0 1px; }
-      .track-card.many .lane-run { height: 38px; }
-      .track-card.many .camel { width: 38px; height: 38px; }
+      .track-card.many .lane-run { height: 32px; }
+      .track-card.many .camel { width: 32px; height: 32px; }
       @media (max-width: 919px) {
         .track-card.many .lane-run { height: 32px; }
         .track-card.many .camel { width: 32px; height: 32px; }
@@ -282,14 +296,14 @@
         .status-msg { font-size: .92rem; }
         .icon-btn { padding: 5px 9px; font-size: .85rem; }
         .track-card { margin-bottom: 10px; padding: 10px 12px 6px; }
-        .lane { padding: 5px 0 2px; }
-        .lane-run { height: 46px; }
-        .camel { width: 46px; height: 46px; }
+        .lane { padding: 4px 0 2px; }
+        .lane-run { height: 34px; }
+        .camel { width: 34px; height: 34px; }
         .step-marks { display: none; }
         .legend.compact { margin-top: 6px; }
         .legend.compact span { font-size: .72rem; }
         .board-wrap { display: flex; justify-content: center; }
-        canvas#board { width: min(100%, calc((100dvh - 452px - env(safe-area-inset-bottom, 0px)) * 0.74074)); }
+        canvas#board { width: min(100%, calc((100dvh - 372px - env(safe-area-inset-bottom, 0px)) * 0.74074)); }
         .board-hint { padding: 8px 10px 10px; font-size: .85rem; }
         .awning { height: 20px; }
       }
@@ -303,13 +317,16 @@
   </head>
   <body>
     <div class="wrap">
-      <!-- Status bar -->
+      <!-- Status bar: solo mensaje, reloj y el botón de ajustes -->
       <div class="card statusbar">
         <span class="status-msg" id="statusMsg">Elige un modo para empezar.</span>
         <span class="clock" id="raceClock" aria-label="Tiempo de carrera">⏱ 0:00</span>
-        <button class="icon-btn" id="restartBtn" type="button">↻ Reiniciar</button>
-        <button class="icon-btn" id="menuBtn" type="button">Cambiar modo</button>
-        <button class="icon-btn" id="soundBtn" type="button" aria-label="Activar o silenciar el sonido">🔊 Sonido</button>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Abrir los ajustes">⚙ Ajustes</button>
+        <div class="settings-panel" id="settingsPanel" hidden>
+          <button class="icon-btn" id="restartBtn" type="button">↻ Reiniciar partida</button>
+          <button class="icon-btn" id="menuBtn" type="button">Cambiar modo</button>
+          <button class="icon-btn" id="soundBtn" type="button" aria-label="Activar o silenciar el sonido">🔊 Sonido</button>
+        </div>
       </div>
 
       <div class="layout">
@@ -1214,14 +1231,20 @@
 
     function showScorePop(points, holePos) {
       var pop = $('scorePop');
+      // Posición en píxeles sobre el lienzo real: el canvas puede ser más
+      // estrecho que su contenedor (centrado), y el % se desviaría.
+      var wr = $('boardWrap').getBoundingClientRect();
+      var cr = $('board').getBoundingClientRect();
+      var ox = cr.left - wr.left, oy = cr.top - wr.top;
       if (points > 0 && holePos) {
         var sp = Board.project(holePos.x, holePos.y);
-        pop.style.left = (sp.x / BW * 100) + '%';
-        pop.style.top = (sp.y / BH * 100) + '%';
+        pop.style.left = (ox + sp.x / BW * cr.width) + 'px';
+        pop.style.top = (oy + sp.y / BH * cr.height) + 'px';
         pop.textContent = '+' + points;
         pop.style.color = 'var(--gold)';
       } else {
-        pop.style.left = '50%'; pop.style.top = '80%';
+        pop.style.left = (ox + cr.width * 0.5) + 'px';
+        pop.style.top = (oy + cr.height * 0.8) + 'px';
         pop.textContent = '¡Fuera!';
         pop.style.color = 'var(--ink-soft)';
       }
@@ -1632,6 +1655,26 @@
     $('soundBtn').addEventListener('click', function () {
       var muted = Sound.toggle();
       this.textContent = muted ? '🔇 Silencio' : '🔊 Sonido';
+    });
+
+    /* --- ajustes: panel desplegable del botón ⚙ (arriba a la derecha) --- */
+    var settingsPanel = $('settingsPanel');
+    function closeSettings() {
+      settingsPanel.hidden = true;
+      $('settingsBtn').setAttribute('aria-expanded', 'false');
+    }
+    $('settingsBtn').addEventListener('click', function (evt) {
+      evt.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      this.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    settingsPanel.addEventListener('click', function () { closeSettings(); });
+    document.addEventListener('click', function (evt) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(evt.target)) closeSettings();
+    });
+    document.addEventListener('keydown', function (evt) {
+      if (evt.key === 'Escape') closeSettings();
     });
 
     // API mínima para depuración y futuras integraciones (p. ej. la capa online).
