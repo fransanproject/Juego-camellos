@@ -143,6 +143,29 @@
       .legend.compact span { font-size: .78rem; padding: 3px 9px 3px 5px; border-width: 2px; }
       .legend.compact i { width: 14px; height: 14px; }
 
+      /* ---------- sala online ---------- */
+      .room-code {
+        font-family: "Lilita One", cursive; font-size: 2.4rem; line-height: 1.1;
+        letter-spacing: .22em; margin: 2px 0 0; color: var(--red);
+      }
+      .lobby-list { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 8px; text-align: left; }
+      .lobby-list li {
+        display: flex; align-items: center; gap: 9px; font-weight: 900;
+        border: 2px solid var(--card-edge); border-radius: 10px;
+        padding: 8px 12px; background: var(--field);
+      }
+      .lobby-list .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); flex: none; }
+      .lobby-list .tag { margin-left: auto; font-size: .75rem; font-weight: 900; color: var(--ink-soft); white-space: nowrap; }
+      .names input.code-input { text-transform: uppercase; letter-spacing: .3em; font-size: 1.15rem; text-align: center; }
+      /* Con muchos corredores (salas online), carriles más compactos */
+      .track-card.many .lane { padding: 3px 0 1px; }
+      .track-card.many .lane-run { height: 38px; }
+      .track-card.many .camel { width: 38px; height: 38px; }
+      @media (max-width: 919px) {
+        .track-card.many .lane-run { height: 32px; }
+        .track-card.many .camel { width: 32px; height: 32px; }
+      }
+
       /* ---------- board ---------- */
       .board-card { overflow: hidden; }
       .awning {
@@ -331,11 +354,14 @@
           <span><i style="background:#f2b33d"></i> 5 pasos</span>
         </div>
         <div class="names" id="nameFields">
-          <label>Nombre del jugador 1 · rojo (izquierda)
+          <label><span id="name1Label">Nombre del jugador 1 · rojo (izquierda)</span>
             <input id="name1" type="text" maxlength="14" value="Jugador 1" autocomplete="off" />
           </label>
           <label id="name2Wrap">Nombre del jugador 2 · azul (derecha)
             <input id="name2" type="text" maxlength="14" value="Jugador 2" autocomplete="off" />
+          </label>
+          <label id="codeWrap" style="display:none;">Código de la sala
+            <input id="roomCode" class="code-input" type="text" maxlength="6" placeholder="ABCD" autocomplete="off" autocapitalize="characters" />
           </label>
         </div>
         <div class="mode-grid" role="group" aria-label="Modo de juego">
@@ -347,7 +373,16 @@
             <strong>👥 2 jugadores a la vez</strong>
             <small>En este mismo móvil, a la vez: cada uno desliza hacia arriba desde su lado (izquierda y derecha), con los dedos a la vez si queréis.</small>
           </button>
+          <button class="mode-btn" id="modeCreate" type="button" aria-pressed="false">
+            <strong>🌐 Crear sala online</strong>
+            <small>Te da un código para compartir: hasta 8 amigos, cada uno en su móvil, viendo avanzar en directo los camellos de todos.</small>
+          </button>
+          <button class="mode-btn" id="modeJoin" type="button" aria-pressed="false">
+            <strong>🔑 Unirse a una sala</strong>
+            <small>Escribe el código que te pase el anfitrión y entra en su sala de espera hasta que dé la salida.</small>
+          </button>
         </div>
+        <p id="formNote" hidden style="font-weight:900; color:var(--red); margin:12px 0 0;"></p>
         <button class="btn red" id="startBtn" type="button" style="width:100%; margin-top:16px; font-size:1.25rem;">¡A jugar!</button>
       </div>
     </div>
@@ -360,6 +395,7 @@
         <div class="winner-camel" id="winnerCamel"></div>
         <h1 id="winnerName">Jugador 1</h1>
         <p id="winnerDetail">Ha cruzado la meta.</p>
+        <p id="rematchNote" hidden></p>
         <div class="mode-grid">
           <button class="btn red" id="againBtn" type="button">Jugar otra vez</button>
           <button class="btn ghost" id="winMenuBtn" type="button">Cambiar modo</button>
@@ -367,8 +403,27 @@
       </div>
     </div>
 
+    <!-- Lobby de la sala online -->
+    <div class="overlay" id="lobbyOverlay" hidden>
+      <div class="sheet">
+        <div class="garland" aria-hidden="true"></div>
+        <p style="margin-top:0;">🌐 Sala online · comparte este código</p>
+        <div class="room-code" id="lobbyCode">····</div>
+        <p>Tus amigos lo escriben en «Unirse a una sala» y aparecen aquí al momento.</p>
+        <p id="lobbyCount" style="font-weight:900;">0 / 8 en la sala</p>
+        <ul class="lobby-list" id="lobbyPlayers"></ul>
+        <p id="lobbyStatus">Conectando con la sala…</p>
+        <div class="mode-grid">
+          <button class="btn red" id="lobbyStartBtn" type="button" hidden>Empezar carrera</button>
+          <button class="btn ghost" id="copyCodeBtn" type="button">Copiar código</button>
+          <button class="btn ghost" id="lobbyLeaveBtn" type="button">Salir de la sala</button>
+        </div>
+      </div>
+    </div>
+
     <canvas id="confetti" hidden></canvas>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script>
     'use strict';
     /* =====================================================================
@@ -376,10 +431,10 @@
        Arquitectura en 3 capas, pensando en el futuro multijugador online:
          1) CORE      — lógica pura (sin DOM ni canvas). Cada jugador suma
                         pasos en cuanto su bola se cuela; no hay turnos.
-         2) TRANSPORT — único canal entre la interfaz y el CORE. Hoy es
-                        local; mañana enviará los eventos por Supabase
-                        Realtime y las acciones remotas entrarán por el
-                        mismo applyAction().
+         2) TRANSPORT — único canal entre la interfaz y el CORE. En local
+                        despacha directo; en online, los aciertos propios
+                        salen por Supabase Realtime (Broadcast) y los de los
+                        demás jugadores entran por el mismo applyAction().
          3) UI/BOARD  — pista y tablero con físicas y perspectiva. Cada
                         jugador tiene su bola y su zona de lanzamiento;
                         todos lanzan a la vez.
@@ -404,7 +459,11 @@
       function start(mode, defs) {
         state.mode = mode;
         state.players = defs.map(function (d, i) {
-          return { id: 'p' + i, name: d.name, colorIdx: i, isAI: !!d.isAI, pos: 0 };
+          return {
+            id: d.id || ('p' + i), name: d.name,
+            colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i),
+            isAI: !!d.isAI, pos: 0
+          };
         });
         state.winner = null;
         state.lastThrow = null;
@@ -445,7 +504,7 @@
     };
 
     /* ==================== 3) UI + tablero con físicas ==================== */
-    var PLAYER_COLORS = ['#d9483b', '#2b7cd3'];
+    var PLAYER_COLORS = ['#d9483b', '#2b7cd3', '#35a04f', '#eda93c', '#f06423', '#12a5a5', '#e5639e', '#8a5a2b'];
 
     /* Camellos cartoon de feria: ilustraciones con manta de color por
        jugador (roja, azul, verde y amarilla). Hoy juegan dos —rojo y
@@ -573,7 +632,7 @@
       function setPlayers(defs) {
         gen++;
         owners = defs.map(function (d, i) {
-          return { id: d.id, name: d.name, colorIdx: i, human: !d.isAI, idx: i };
+          return { id: d.id, name: d.name, colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i), human: !d.isAI, idx: i };
         });
         balls = {};
         owners.forEach(function (o) { balls[o.id] = makeBall(o.idx); });
@@ -1075,19 +1134,20 @@
 
     function buildLanes() {
       lanesEl.innerHTML = '';
-      core.state.players.forEach(function (p, i) {
+      document.querySelector('.track-card').classList.toggle('many', core.state.players.length > 4);
+      core.state.players.forEach(function (p) {
         var lane = document.createElement('div');
         lane.className = 'lane';
         lane.innerHTML =
           '<div class="lane-top">' +
-            '<span class="lane-name"><span class="dot" style="background:' + PLAYER_COLORS[i] + '"></span>' +
+            '<span class="lane-name"><span class="dot" style="background:' + PLAYER_COLORS[p.colorIdx] + '"></span>' +
             '<span class="lname"></span>' + (p.isAI ? ' <small style="color:var(--ink-soft)">(IA)</small>' : '') + '</span>' +
             '<span class="lane-pos" id="pos-' + p.id + '">0 / ' + GOAL_STEPS + '</span>' +
           '</div>' +
           '<div class="lane-run">' +
             '<span class="finish-flag" aria-hidden="true">🏁</span>' +
             '<span class="finish-label">META</span>' +
-            '<div class="camel" id="camel-' + p.id + '">' + camelArt(i) + '</div>' +
+            '<div class="camel" id="camel-' + p.id + '">' + camelArt(p.colorIdx) + '</div>' +
           '</div>';
         lane.querySelector('.lname').textContent = p.name;
         lanesEl.appendChild(lane);
@@ -1130,6 +1190,7 @@
       var s = core.state;
       $('boardHint').textContent =
         s.phase !== 'playing' ? 'La partida ha terminado.' :
+        s.mode === 'online' ? 'Sala ' + (Room.code || '') + ' · online: desliza el dedo hacia arriba para lanzar tu bola y mira la pista: los camellos de todos avanzan en directo con cada acierto.' :
         s.mode === 'duo' ? '¡A la vez! Cada uno desliza el dedo hacia arriba desde su lado del tablero (izquierda y derecha) para lanzar: cuanto más rápido el deslizamiento, más fuerte el tiro. En cuanto la bola vuelve, a lanzar otra.' :
         'Desliza el dedo hacia arriba sobre el tablero para lanzar tu bola: la dirección y la velocidad del deslizamiento mandan. Siroco lanza a la vez que tú: en cuanto tu bola vuelva, a por otra.';
     }
@@ -1159,6 +1220,10 @@
       if (points > 0) Sound.score(points); else Sound.miss();
       showScorePop(points, hole);
       Transport.dispatch({ type: 'THROW', playerId: ownerId, points: points });
+      if (core.state.mode === 'online' && Room.channel) {
+        // Evento diminuto a toda la sala: "este jugador avanza N pasos".
+        Room.channel.send({ type: 'broadcast', event: 'throw', payload: { pid: ownerId, points: points } });
+      }
       if (thrower) {
         setMsg(points > 0
           ? '¡' + thrower.name + ' cuela un ' + points + '! Su camello avanza.'
@@ -1186,7 +1251,13 @@
     Transport.on('start', function () {
       buildLanes();
       renderPositions();
-      Board.setPlayers(core.state.players);
+      var boardDefs = core.state.players;
+      if (core.state.mode === 'online') {
+        // En online cada móvil dibuja solo su propia bola en su tablero;
+        // los demás camellos avanzan en la pista con los eventos que llegan.
+        boardDefs = boardDefs.filter(function (p) { return p.id === Room.myId; });
+      }
+      Board.setPlayers(boardDefs);
       Board.setActive(true);
       raceElapsedMs = 0;
       clockLastTick = 0;
@@ -1197,6 +1268,11 @@
     });
     Transport.on('throw', function (e) {
       renderPositions(e.player.id);
+      if (core.state.mode === 'online' && e.player.id !== Room.myId && core.state.phase === 'playing') {
+        setMsg(e.points > 0
+          ? '¡' + e.player.name + ' cuela un ' + e.points + '! Su camello avanza.'
+          : e.player.name + ' falla su bola.');
+      }
     });
     Transport.on('win', function (e) {
       Board.setActive(false);
@@ -1205,6 +1281,12 @@
       $('winnerName').style.color = PLAYER_COLORS[e.player.colorIdx];
       $('winnerDetail').textContent = 'Su camello ha cruzado la meta en ' + fmtTime(raceElapsedMs) + '.';
       $('winnerCamel').innerHTML = camelArt(e.player.colorIdx);
+      var online = core.state.mode === 'online';
+      $('rematchNote').hidden = true;
+      $('rematchNote').textContent = '';
+      $('againBtn').disabled = false;
+      $('againBtn').textContent = online ? (Room.amHost ? 'Revancha' : 'Pedir revancha') : 'Jugar otra vez';
+      $('winMenuBtn').textContent = online ? 'Salir de la sala' : 'Cambiar modo';
       setMsg('🏁 ' + e.player.name + ' gana la carrera en ' + fmtTime(raceElapsedMs) + '.');
       Sound.win();
       confettiBurst();
@@ -1243,6 +1325,220 @@
       })(start);
     }
 
+    /* ==================== ONLINE — salas con Supabase Realtime ======
+       Canales Broadcast efímeros, sin tablas ni SQL: el canal ES la
+       sala. Presence anuncia en vivo quién está en la sala de espera
+       (hasta 8); el anfitrión emite 'game_start' con la lista de
+       corredores; cada acierto viaja como un evento 'throw' diminuto
+       ("jugador X avanza N pasos") y todos los móviles dibujan todos
+       los camellos. La clave anon es pública por diseño.            */
+    var SB_URL = 'https://zjcthmglltdrefwnflqm.supabase.co';
+    var SB_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqY3RobWdsbHRkcmVmd25mbHFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwODA5OTMsImV4cCI6MjEwNzY1Njk5M30.hWorZSMT1C5dMVXYAaR2_fuduVwit4uJ9qrPGXcBk7o';
+    var MAX_PLAYERS = 8;
+    var sbClient = null;
+    var Room = {
+      active: false, code: null, isHost: false, amHost: false,
+      channel: null, myId: null, players: []
+    };
+
+    function sb() {
+      if (!window.supabase || !window.supabase.createClient) return null;
+      if (!sbClient) sbClient = window.supabase.createClient(SB_URL, SB_ANON_KEY);
+      return sbClient;
+    }
+    function myName() { return ($('name1').value || '').trim() || 'Jugador'; }
+    function genCode() {
+      var abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      var out = '';
+      for (var i = 0; i < 4; i++) out += abc.charAt(Math.floor(Math.random() * abc.length));
+      return out;
+    }
+    function createRoom() { enterRoom(genCode(), true); }
+    function formMsg(text) {
+      var n = $('formNote');
+      n.textContent = text || '';
+      n.hidden = !text;
+    }
+    function joinRoom() {
+      var code = ($('roomCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length < 3) {
+        formMsg('Escribe el código de la sala para unirte.');
+        $('roomCode').focus();
+        return;
+      }
+      formMsg('');
+      enterRoom(code, false);
+    }
+
+    function enterRoom(code, isHost) {
+      var client = sb();
+      if (!client) {
+        formMsg('No se ha podido cargar la conexión online. Comprueba tu conexión e inténtalo otra vez.');
+        return;
+      }
+      formMsg('');
+      if (Room.active) leaveRoom();
+      Room.myId = 'u' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+      Room.code = code;
+      Room.isHost = isHost;
+      Room.amHost = isHost;
+      Room.active = true;
+      Room.players = [];
+      var ch = client.channel('camellos-' + code.toLowerCase(), {
+        config: { broadcast: { self: false }, presence: { key: Room.myId } }
+      });
+      Room.channel = ch;
+      ch.on('presence', { event: 'sync' }, syncLobby);
+      ch.on('broadcast', { event: 'throw' }, function (msg) {
+        var p = (msg && msg.payload) || {};
+        if (!p.pid || p.pid === Room.myId) return;
+        Transport.dispatch({ type: 'THROW', playerId: p.pid, points: p.points | 0 });
+      });
+      ch.on('broadcast', { event: 'game_start' }, function (msg) {
+        var roster = (msg && msg.payload && msg.payload.roster) || [];
+        var mine = roster.some(function (r) { return r.id === Room.myId; });
+        if (mine) beginOnlineRace(roster);
+        else setLobbyStatus('Hay una carrera en curso en esta sala. Si el anfitrión lanza una revancha con todos dentro, entrarás en ella.');
+      });
+      ch.on('broadcast', { event: 'rematch_request' }, function (msg) {
+        if (!Room.amHost || core.state.phase !== 'finished') return;
+        var who = (msg && msg.payload && msg.payload.name) || 'Un jugador';
+        $('rematchNote').textContent = '🔥 ' + who + ' pide revancha.';
+        $('rematchNote').hidden = false;
+      });
+      $('startOverlay').hidden = true;
+      $('winOverlay').hidden = true;
+      showLobby();
+      ch.subscribe(function (status) {
+        if (status === 'SUBSCRIBED') {
+          var tracked = ch.track({ id: Room.myId, name: myName(), host: isHost, joinedAt: Date.now() });
+          if (tracked && tracked.catch) tracked.catch(function () {});
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setLobbyStatus('No se pudo conectar con la sala. Comprueba tu conexión y vuelve a intentarlo.');
+        }
+      });
+    }
+
+    function presencePlayers() {
+      if (!Room.channel) return [];
+      var st = Room.channel.presenceState();
+      var list = [];
+      Object.keys(st).forEach(function (k) {
+        st[k].forEach(function (m) { list.push(m); });
+      });
+      list.sort(function (a, b) {
+        return (a.joinedAt - b.joinedAt) || (a.id < b.id ? -1 : 1);
+      });
+      return list;
+    }
+
+    function setLobbyStatus(text) { $('lobbyStatus').textContent = text; }
+
+    function syncLobby() {
+      if (!Room.active) return;
+      var players = presencePlayers();
+      Room.players = players;
+      var host = null;
+      players.forEach(function (p) { if (p.host && !host) host = p; });
+      if (!host) host = players[0] || null;   // si el anfitrión se va, hereda el más antiguo
+      Room.amHost = !!host && host.id === Room.myId;
+      var ul = $('lobbyPlayers');
+      ul.innerHTML = '';
+      players.forEach(function (p, i) {
+        var li = document.createElement('li');
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+        li.appendChild(dot);
+        li.appendChild(document.createTextNode(p.name || 'Jugador'));
+        var tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = (p.host ? 'Anfitrión' : '') + (p.id === Room.myId ? (p.host ? ' · tú' : 'Tú') : '');
+        li.appendChild(tag);
+        ul.appendChild(li);
+      });
+      $('lobbyCount').textContent = players.length + ' / ' + MAX_PLAYERS + ' en la sala';
+      var startBtn = $('lobbyStartBtn');
+      startBtn.hidden = !Room.amHost;
+      startBtn.disabled = players.length < 2;
+      if ($('lobbyOverlay').hidden) return;
+      if (players.length === 0) setLobbyStatus('Conectando con la sala…');
+      else if (players.length >= MAX_PLAYERS) setLobbyStatus('¡Sala llena! A correr en cuanto el anfitrión dé la salida.');
+      else if (Room.amHost) setLobbyStatus(players.length < 2
+        ? 'Comparte el código con tus amigos y espera a que entren.'
+        : '¡Ya estáis dentro! Pulsa «Empezar carrera» cuando estéis todos.');
+      else if (players.length <= 1) setLobbyStatus('De momento estás solo en esta sala: comprueba que el código es el correcto y espera a que entre el anfitrión.');
+      else setLobbyStatus('Estás dentro. Esperando a que el anfitrión inicie la carrera…');
+    }
+
+    function showLobby() {
+      $('lobbyCode').textContent = Room.code;
+      $('lobbyOverlay').hidden = false;
+      syncLobby();
+    }
+
+    function beginOnlineRace(roster) {
+      var defs = roster.map(function (r, i) {
+        return { id: r.id, name: r.name, colorIdx: i, isAI: false };
+      });
+      gameConfig = { mode: 'online', defs: defs };
+      $('lobbyOverlay').hidden = true;
+      $('winOverlay').hidden = true;
+      $('startOverlay').hidden = true;
+      Transport.dispatch({ type: 'START', mode: 'online', players: defs });
+      setMsg('🌐 Carrera online en la sala ' + Room.code + ' con ' + defs.length + ' camellos. ¡A lanzar!');
+    }
+
+    function startOnlineRaceFromLobby() {
+      if (!Room.channel || Room.players.length < 2) return;
+      var roster = Room.players.map(function (p) { return { id: p.id, name: p.name }; });
+      Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster } });
+      beginOnlineRace(roster);
+    }
+
+    function onlineRematchAction() {
+      if (!Room.channel) return;
+      if (Room.amHost) {
+        var roster = Room.players.map(function (p) { return { id: p.id, name: p.name }; });
+        if (roster.length < 2 && gameConfig) {
+          roster = gameConfig.defs.map(function (d) { return { id: d.id, name: d.name }; });
+        }
+        if (roster.length < 2) return;
+        Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster } });
+        beginOnlineRace(roster);
+      } else {
+        Room.channel.send({ type: 'broadcast', event: 'rematch_request', payload: { name: myName() } });
+        $('againBtn').disabled = true;
+        $('againBtn').textContent = 'Revancha pedida ✓';
+      }
+    }
+
+    function leaveRoom() {
+      if (Room.channel) {
+        try { Room.channel.untrack(); } catch (e) {}
+        if (sbClient) { try { sbClient.removeChannel(Room.channel); } catch (e) {} }
+      }
+      Room.active = false;
+      Room.channel = null;
+      Room.code = null;
+      Room.players = [];
+      Room.amHost = false;
+      $('lobbyOverlay').hidden = true;
+    }
+
+    $('lobbyStartBtn').addEventListener('click', startOnlineRaceFromLobby);
+    $('lobbyLeaveBtn').addEventListener('click', function () { toMenu(); });
+    $('copyCodeBtn').addEventListener('click', function () {
+      var btn = this;
+      function done() {
+        btn.textContent = '✓ Copiado';
+        setTimeout(function () { btn.textContent = 'Copiar código'; }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText && Room.code) {
+        navigator.clipboard.writeText(Room.code).then(done, done);
+      } else done();
+    });
+
     /* --- controles --- */
     function startGame(mode) {
       Sound.unlock();
@@ -1260,31 +1556,55 @@
       Transport.dispatch({ type: 'START', mode: mode, players: defs });
     }
     var selectedMode = 'ai';
+    var MODE_BTNS = { ai: 'modeAi', duo: 'modeDuo', create: 'modeCreate', join: 'modeJoin' };
     function selectMode(mode) {
       selectedMode = mode;
-      $('modeAi').classList.toggle('selected', mode === 'ai');
-      $('modeDuo').classList.toggle('selected', mode === 'duo');
-      $('modeAi').setAttribute('aria-pressed', mode === 'ai' ? 'true' : 'false');
-      $('modeDuo').setAttribute('aria-pressed', mode === 'duo' ? 'true' : 'false');
+      formMsg('');
+      Object.keys(MODE_BTNS).forEach(function (k) {
+        var b = $(MODE_BTNS[k]);
+        b.classList.toggle('selected', k === mode);
+        b.setAttribute('aria-pressed', k === mode ? 'true' : 'false');
+      });
       $('name2Wrap').style.display = mode === 'duo' ? '' : 'none';
+      $('codeWrap').style.display = mode === 'join' ? '' : 'none';
+      $('name1Label').textContent =
+        mode === 'duo' ? 'Nombre del jugador 1 · rojo (izquierda)' :
+        (mode === 'create' || mode === 'join') ? 'Tu nombre' :
+        'Nombre del jugador 1 · rojo (izquierda)';
+      $('startBtn').textContent =
+        mode === 'create' ? 'Crear sala' :
+        mode === 'join' ? 'Unirse a la sala' : '¡A jugar!';
     }
     $('modeAi').addEventListener('click', function () { selectMode('ai'); });
     $('modeDuo').addEventListener('click', function () { selectMode('duo'); });
-    $('startBtn').addEventListener('click', function () { startGame(selectedMode); });
+    $('modeCreate').addEventListener('click', function () { selectMode('create'); });
+    $('modeJoin').addEventListener('click', function () { selectMode('join'); });
+    $('startBtn').addEventListener('click', function () {
+      Sound.unlock();
+      if (selectedMode === 'create') createRoom();
+      else if (selectedMode === 'join') joinRoom();
+      else startGame(selectedMode);
+    });
     selectMode('ai');
     $('againBtn').addEventListener('click', function () {
+      if (core.state.mode === 'online') { onlineRematchAction(); return; }
       if (gameConfig) {
         $('winOverlay').hidden = true;
         Transport.dispatch({ type: 'START', mode: gameConfig.mode, players: gameConfig.defs });
       }
     });
     $('restartBtn').addEventListener('click', function () {
+      if (core.state.mode === 'online') {
+        setMsg('En la sala online no hay reinicio local: al terminar, el anfitrión lanza la revancha.');
+        return;
+      }
       if (gameConfig) {
         $('winOverlay').hidden = true;
         Transport.dispatch({ type: 'START', mode: gameConfig.mode, players: gameConfig.defs });
       }
     });
     function toMenu() {
+      if (Room.active) leaveRoom();
       Board.setActive(false);
       $('winOverlay').hidden = true;
       $('startOverlay').hidden = false;
@@ -1298,7 +1618,7 @@
     });
 
     // API mínima para depuración y futuras integraciones (p. ej. la capa online).
-    window.CamelGame = { core: core, transport: Transport, board: Board, ai: AI };
+    window.CamelGame = { core: core, transport: Transport, board: Board, ai: AI, room: Room };
 
     Board.draw();
     // Parpadeo de bombillas y estrellas de la feria cuando no hay bolas en juego
