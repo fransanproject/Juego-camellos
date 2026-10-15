@@ -48,9 +48,10 @@
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; overscroll-behavior: none; }
-      /* Durante la partida la pantalla queda bloqueada: sin esto, el
-         navegador interpreta el swipe de lanzamiento como un scroll y
-         la página se mueve bajo el dedo. */
+      /* Con el menú abierto o la partida en curso la pantalla queda
+         bloqueada: sin esto, el navegador interpreta el swipe (de
+         lanzamiento en el tablero, o hacia abajo en el menú) como un
+         scroll y la página se mueve bajo el dedo. */
       body.scroll-locked { overflow: hidden; }
       body {
         font-family: "Nunito", system-ui, sans-serif;
@@ -237,14 +238,25 @@
       .overlay {
         position: fixed; inset: 0; z-index: 40; display: flex;
         background: var(--overlay); padding: 12px;
-        overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+        overflow-y: auto; overscroll-behavior: none; -webkit-overflow-scrolling: touch;
       }
       .overlay[hidden] { display: none; }
       .sheet {
         background: var(--card); border: 3px solid var(--card-edge); border-radius: 20px;
         box-shadow: 0 10px 0 var(--shadow); max-width: 460px; width: 100%;
         padding: 26px 24px; text-align: center; margin: auto;
+        /* La tarjeta nunca pasa del alto visible: si el contenido no
+           cabe (pantallas muy bajas), se desplaza por dentro y la
+           página de detrás ni se mueve ni se «tira para actualizar». */
+        max-height: calc(100dvh - 20px); overflow-y: auto; overscroll-behavior: none;
       }
+      /* Menú principal: los 4 modos en 2×2 para que la tarjeta quepa
+         entera en la pantalla del móvil y el botón de empezar no quede
+         abajo, tapado por la barra del navegador. */
+      #startOverlay .mode-grid { grid-template-columns: 1fr 1fr; }
+      /* Y si aun así hay que desplazarse, el botón de empezar queda
+         fijo al pie de la tarjeta, siempre a la vista. */
+      #startBtn { position: sticky; bottom: 0; z-index: 2; }
       /* Pantallas estrechas o bajas (móvil real, con la chrome de la app):
          menú compacto para que el botón de empezar se vea sin desplazarse;
          si aun así no cabe, la capa entera se desplaza y todo es alcanzable. */
@@ -262,6 +274,10 @@
         .sheet .mode-btn { padding: 10px 12px; }
         .sheet .mode-btn strong { font-size: 1.05rem; }
         .sheet .mode-btn small { font-size: .82rem; line-height: 1.3; }
+        #startOverlay .mode-grid { gap: 8px; }
+        #startOverlay .mode-btn { padding: 9px 10px; }
+        #startOverlay .mode-btn strong { font-size: 1rem; }
+        #startOverlay .mode-btn small { font-size: .78rem; line-height: 1.25; }
         .sheet #startBtn { margin-top: 12px !important; font-size: 1.12rem !important; padding: 9px 16px; }
         .sheet .winner-camel { width: 104px; }
       }
@@ -315,7 +331,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="scroll-locked">
     <div class="wrap">
       <!-- Status bar: solo mensaje, reloj y el botón de ajustes -->
       <div class="card statusbar">
@@ -367,7 +383,7 @@
       <div class="sheet">
         <div class="garland" aria-hidden="true"></div>
         <h1>El juego de los <span class="accent">camellos</span></h1>
-        <p>El clásico de feria, <strong>a tiempo real</strong>: los dos jugáis a la vez, sin turnos. Cuela las bolas por los agujeros en triángulo —la punta de 5 pasos está arriba del todo— y haz avanzar a tu camello. El primero en cruzar la meta, gana.</p>
+        <p>El clásico de feria, <strong>a tiempo real y sin turnos</strong>: cuela las bolas por los agujeros en triángulo —la punta vale 5 pasos— y haz avanzar a tu camello. El primero en cruzar la meta, gana.</p>
         <div class="legend">
           <span><i style="background:#fdf6e3"></i> 1 paso</span>
           <span><i style="background:#57a8d8"></i> 2 pasos</span>
@@ -388,19 +404,19 @@
         <div class="mode-grid" role="group" aria-label="Modo de juego">
           <button class="mode-btn selected" id="modeAi" type="button" aria-pressed="true">
             <strong>🤖 Contra la IA</strong>
-            <small>Tú contra Siroco, el camello robot, lanzando a la vez que tú. Nada de esperar turnos.</small>
+            <small>Tú contra Siroco, el camello robot, lanzando a la vez que tú.</small>
           </button>
           <button class="mode-btn" id="modeDuo" type="button" aria-pressed="false">
             <strong>👥 2 jugadores a la vez</strong>
-            <small>En este mismo móvil, a la vez: cada uno desliza hacia arriba desde su lado (izquierda y derecha), con los dedos a la vez si queréis.</small>
+            <small>En este mismo móvil: cada uno desliza desde su lado, a la vez.</small>
           </button>
           <button class="mode-btn" id="modeCreate" type="button" aria-pressed="false">
             <strong>🌐 Crear sala online</strong>
-            <small>Te da un código para compartir: hasta 8 amigos, cada uno en su móvil, viendo avanzar en directo los camellos de todos.</small>
+            <small>Te da un código: hasta 8 amigos, cada uno en su móvil.</small>
           </button>
           <button class="mode-btn" id="modeJoin" type="button" aria-pressed="false">
             <strong>🔑 Unirse a una sala</strong>
-            <small>Escribe el código que te pase el anfitrión y entra en su sala de espera hasta que dé la salida.</small>
+            <small>Con el código del anfitrión, entras en su sala de espera.</small>
           </button>
         </div>
         <p id="formNote" hidden style="font-weight:900; color:var(--red); margin:12px 0 0;"></p>
@@ -1115,8 +1131,9 @@
           active = !!v;
           if (!active) { gen++; swipes = {}; }
           // Con partida en curso, la página no se desplaza: el dedo es
-          // solo para lanzar. Al terminar o volver al menú, se libera.
-          document.body.classList.toggle('scroll-locked', active);
+          // solo para lanzar. El bloqueo lo decide syncScrollLock, que
+          // también lo mantiene con cualquier capa (menú) abierta.
+          syncScrollLock();
           draw();
         },
         isActive: function () { return active; },
@@ -1316,6 +1333,9 @@
     });
     Transport.on('win', function (e) {
       Board.setActive(false);
+      // La hoja del ganador tarda 900 ms en aparecer: la pantalla
+      // sigue bloqueada mientras tanto, que no se mueva al celebrarlo.
+      document.body.classList.add('scroll-locked');
       updateHint();
       $('winnerName').textContent = '¡' + e.player.name + ' gana!';
       $('winnerName').style.color = PLAYER_COLORS[e.player.colorIdx];
@@ -1676,6 +1696,22 @@
     document.addEventListener('keydown', function (evt) {
       if (evt.key === 'Escape') closeSettings();
     });
+
+    /* Bloqueo de desplazamiento global: la página no se mueve ni con
+       el menú abierto ni en partida. Con cualquier capa visible (menú
+       principal, sala de espera, ganador) o con la partida en curso,
+       el cuerpo queda bloqueado y el swipe del dedo no desplaza la
+       página ni dispara el «tirar para actualizar» del navegador. */
+    function anyOverlayOpen() {
+      return !$('startOverlay').hidden || !$('winOverlay').hidden || !$('lobbyOverlay').hidden;
+    }
+    function syncScrollLock() {
+      document.body.classList.toggle('scroll-locked', Board.isActive() || anyOverlayOpen());
+    }
+    ['startOverlay', 'winOverlay', 'lobbyOverlay'].forEach(function (id) {
+      new MutationObserver(syncScrollLock).observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+    });
+    syncScrollLock();
 
     // API mínima para depuración y futuras integraciones (p. ej. la capa online).
     window.CamelGame = { core: core, transport: Transport, board: Board, ai: AI, room: Room };
