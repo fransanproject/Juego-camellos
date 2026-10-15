@@ -129,7 +129,7 @@
         background:
           radial-gradient(1.4px 1.4px at 14px 10px, rgba(255, 244, 200, .85) 50%, transparent 52%),
           radial-gradient(1.1px 1.1px at 46px 26px, rgba(255, 255, 255, .55) 50%, transparent 52%),
-          repeating-linear-gradient(90deg, transparent 0, transparent calc(5% - 2px), rgba(255, 240, 205, .28) calc(5% - 2px), rgba(255, 240, 205, .28) 5%),
+          repeating-linear-gradient(90deg, transparent 0, transparent calc(3.333% - 2px), rgba(255, 240, 205, .28) calc(3.333% - 2px), rgba(255, 240, 205, .28) 3.333%),
           linear-gradient(90deg, #2c2358 0%, #372a6b 88%, rgba(217, 72, 59, .35) 88%, rgba(217, 72, 59, .35) 100%);
         background-size: 64px 34px, 64px 34px, auto, auto;
         border: 2px solid var(--track-line);
@@ -300,6 +300,33 @@
         font: inherit; font-weight: 800; padding: 10px 12px; border-radius: 10px;
         border: 2.5px solid var(--card-edge); background: var(--field); color: var(--ink); width: 100%;
       }
+      .names select {
+        font: inherit; font-weight: 800; padding: 10px 12px; border-radius: 10px;
+        border: 2.5px solid var(--card-edge); background: var(--field); color: var(--ink); width: 100%;
+      }
+      .names .series-note { font-weight: 800; font-size: .8rem; color: var(--ink-soft); }
+      /* Fichas de la serie junto al nombre de cada carril */
+      .chips-badge {
+        font-size: .78rem; font-weight: 900; white-space: nowrap;
+        border: 2px solid var(--card-edge); border-radius: 999px;
+        background: var(--gold); color: #38240f; padding: 1px 9px;
+      }
+      /* Ranking final de la serie */
+      .final-ranking { margin-top: 14px; text-align: left; }
+      .final-ranking h2 { font-family: "Lilita One", cursive; font-weight: 400; font-size: 1.25rem; margin: 0 0 8px; text-align: center; }
+      .final-ranking ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; }
+      .final-ranking li {
+        display: flex; align-items: center; gap: 9px; font-weight: 900;
+        border: 2px solid var(--card-edge); border-radius: 10px;
+        padding: 7px 12px; background: var(--field);
+      }
+      .final-ranking li.champion { background: var(--gold); }
+      .final-ranking .rank { font-family: "Lilita One", cursive; min-width: 1.6em; text-align: center; }
+      .final-ranking .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); flex: none; }
+      .final-ranking .rname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .final-ranking .rchips { margin-left: auto; white-space: nowrap; font-size: .85rem; }
+      .teddy-line { font-weight: 900; font-size: 1.05rem; text-align: center; margin-top: 12px !important; color: var(--ink) !important; }
+      .teddy-big { font-size: 3.2rem; line-height: 1.1; text-align: center; }
       .winner-camel { width: 150px; margin: 4px auto 0; }
       .winner-camel img { width: 100%; height: auto; display: block; }
       #confetti { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
@@ -351,10 +378,10 @@
           <section class="card track-card" aria-label="Pista de la carrera">
             <div class="track-head">
               <h2>La carrera</h2>
-              <span>Meta: 20 pasos · a la vez, sin turnos</span>
+              <span>Meta: 30 puntos · a la vez, sin turnos</span>
             </div>
             <div id="lanes"></div>
-            <div class="step-marks"><span>Salida</span><span>5</span><span>10</span><span>15</span><span>Meta</span></div>
+            <div class="step-marks"><span>Salida</span><span>10</span><span>20</span><span>Meta</span></div>
             <div class="legend compact" style="justify-content:flex-start;">
               <span><i style="background:#fdf6e3"></i> 1 paso</span>
               <span><i style="background:#57a8d8"></i> 2 pasos</span>
@@ -400,6 +427,21 @@
           <label id="codeWrap" style="display:none;">Código de la sala
             <input id="roomCode" class="code-input" type="text" maxlength="6" placeholder="ABCD" autocomplete="off" autocapitalize="characters" />
           </label>
+          <label id="seriesWrap" style="display:none;">Partidas de la serie
+            <select id="seriesCount">
+              <option value="1">1 partida</option>
+              <option value="2">2 partidas</option>
+              <option value="3" selected>3 partidas</option>
+              <option value="4">4 partidas</option>
+              <option value="5">5 partidas</option>
+              <option value="6">6 partidas</option>
+              <option value="7">7 partidas</option>
+              <option value="8">8 partidas</option>
+              <option value="9">9 partidas</option>
+              <option value="10">10 partidas</option>
+            </select>
+            <span class="series-note">Cada ganador se lleva una ficha 🟡. Al terminar la serie, el que más fichas tenga gana un oso de peluche 🧸.</span>
+          </label>
         </div>
         <div class="mode-grid" role="group" aria-label="Modo de juego">
           <button class="mode-btn selected" id="modeAi" type="button" aria-pressed="true">
@@ -432,6 +474,13 @@
         <div class="winner-camel" id="winnerCamel"></div>
         <h1 id="winnerName">Jugador 1</h1>
         <p id="winnerDetail">Ha cruzado la meta.</p>
+        <p id="seriesInfo" hidden style="font-weight:900;"></p>
+        <div class="final-ranking" id="finalRanking" hidden>
+          <div class="teddy-big" aria-hidden="true">🧸</div>
+          <h2>🏆 Ranking final de la serie</h2>
+          <ol id="rankingList"></ol>
+          <p class="teddy-line" id="teddyLine"></p>
+        </div>
         <p id="rematchNote" hidden></p>
         <div class="mode-grid">
           <button class="btn red" id="againBtn" type="button">Jugar otra vez</button>
@@ -448,6 +497,7 @@
         <div class="room-code" id="lobbyCode">····</div>
         <p>Tus amigos lo escriben en «Unirse a una sala» y aparecen aquí al momento.</p>
         <p id="lobbyCount" style="font-weight:900;">0 / 8 en la sala</p>
+        <p id="lobbySeries" style="font-weight:900;">Serie de 3 partidas · cada ganador, una ficha 🟡 · el campeón se lleva el oso 🧸</p>
         <ul class="lobby-list" id="lobbyPlayers"></ul>
         <p id="lobbyStatus">Conectando con la sala…</p>
         <div class="mode-grid">
@@ -478,7 +528,7 @@
        ===================================================================== */
 
     /* ==================== 1) CORE — lógica pura ==================== */
-    var GOAL_STEPS = 20;
+    var GOAL_STEPS = 30;
 
     function createCore() {
       var listeners = {};
@@ -1193,6 +1243,7 @@
           '<div class="lane-top">' +
             '<span class="lane-name"><span class="dot" style="background:' + PLAYER_COLORS[p.colorIdx] + '"></span>' +
             '<span class="lname"></span>' + (p.isAI ? ' <small style="color:var(--ink-soft)">(IA)</small>' : '') + '</span>' +
+            '<span class="chips-badge" id="chips-' + p.id + '" hidden>🟡 0</span>' +
             '<span class="lane-pos" id="pos-' + p.id + '">0 / ' + GOAL_STEPS + '</span>' +
           '</div>' +
           '<div class="lane-run">' +
@@ -1308,6 +1359,7 @@
     Transport.on('start', function () {
       buildLanes();
       renderPositions();
+      updateChipsBadges();
       var boardDefs = core.state.players;
       if (core.state.mode === 'online') {
         // En online cada móvil dibuja solo su propia bola en su tablero;
@@ -1321,7 +1373,11 @@
       lastAiLaunch = performance.now();
       $('raceClock').textContent = '⏱ 0:00';
       updateHint();
-      setMsg('¡A la vez! Lanzad sin parar: el primero en llegar a la meta gana.');
+      if (core.state.mode === 'online' && Series.active) {
+        setMsg('🌐 ' + seriesLabel() + ' de la serie · el ganador se lleva una ficha 🟡. ¡A lanzar!');
+      } else {
+        setMsg('¡A la vez! Lanzad sin parar: el primero en llegar a la meta gana.');
+      }
     });
     Transport.on('throw', function (e) {
       renderPositions(e.player.id);
@@ -1345,9 +1401,62 @@
       $('rematchNote').hidden = true;
       $('rematchNote').textContent = '';
       $('againBtn').disabled = false;
-      $('againBtn').textContent = online ? (Room.amHost ? 'Revancha' : 'Pedir revancha') : 'Jugar otra vez';
+      $('seriesInfo').hidden = true;
+      $('finalRanking').hidden = true;
+      if (online && Series.active) {
+        // La ficha de esta partida, una sola vez por carrera y cliente.
+        if (Series.recordedIndex !== Series.current) {
+          Series.recordedIndex = Series.current;
+          Series.chips[e.player.id] = (Series.chips[e.player.id] || 0) + 1;
+          updateChipsBadges();
+        }
+        Series.finished = Series.current >= Series.total;
+        var info = $('seriesInfo');
+        info.hidden = false;
+        if (Series.finished) {
+          var standings = seriesStandings();
+          var topChips = standings.length ? standings[0].chips : 0;
+          var champions = standings.filter(function (s) { return s.chips === topChips; });
+          info.textContent = '🏁 ' + seriesLabel() + ' terminada · ' + e.player.name + ' se lleva la última ficha 🟡.';
+          var ol = $('rankingList');
+          ol.innerHTML = '';
+          standings.forEach(function (s, i) {
+            var li = document.createElement('li');
+            if (s.chips === topChips) li.className = 'champion';
+            var rank = document.createElement('span');
+            rank.className = 'rank';
+            rank.textContent = (i + 1) + '.º';
+            var dot = document.createElement('span');
+            dot.className = 'dot';
+            dot.style.background = PLAYER_COLORS[s.player.colorIdx];
+            var nm = document.createElement('span');
+            nm.className = 'rname';
+            nm.textContent = s.player.name + (s.chips === topChips ? ' 🧸' : '');
+            var ch = document.createElement('span');
+            ch.className = 'rchips';
+            ch.textContent = '🟡 ' + s.chips + (s.chips === 1 ? ' ficha' : ' fichas');
+            li.appendChild(rank); li.appendChild(dot); li.appendChild(nm); li.appendChild(ch);
+            ol.appendChild(li);
+          });
+          $('teddyLine').textContent = champions.length === 1
+            ? '🧸 ¡' + champions[0].player.name + ' gana el oso de peluche con ' + topChips + (topChips === 1 ? ' ficha' : ' fichas') + '!'
+            : '🧸 ¡Empate a ' + topChips + (topChips === 1 ? ' ficha' : ' fichas') + '! El oso de peluche se comparte entre ' + champions.map(function (c) { return c.player.name; }).join(' y ') + '.';
+          $('finalRanking').hidden = false;
+          $('againBtn').textContent = Room.amHost ? 'Nueva serie' : 'Pedir nueva serie';
+          setMsg('🏆 Serie terminada: ' + (champions.length === 1 ? champions[0].player.name + ' se lleva el oso de peluche 🧸' : 'empate por el oso de peluche 🧸.'));
+        } else {
+          var mine = Series.chips[e.player.id] || 0;
+          info.textContent = '🟡 ' + e.player.name + ' gana una ficha (lleva ' + mine + (mine === 1 ? ' ficha' : ' fichas') + ') · ' + seriesLabel() + ' terminada, quedan ' + (Series.total - Series.current) + '.';
+          $('againBtn').textContent = Room.amHost
+            ? 'Siguiente partida (' + (Series.current + 1) + ' de ' + Series.total + ')'
+            : 'Pedir la siguiente partida';
+          setMsg('🏁 ' + e.player.name + ' gana la partida ' + Series.current + ' de ' + Series.total + ' y se lleva una ficha 🟡.');
+        }
+      } else {
+        $('againBtn').textContent = online ? (Room.amHost ? 'Revancha' : 'Pedir revancha') : 'Jugar otra vez';
+        setMsg('🏁 ' + e.player.name + ' gana la carrera en ' + fmtTime(raceElapsedMs) + '.');
+      }
       $('winMenuBtn').textContent = online ? 'Salir de la sala' : 'Cambiar modo';
-      setMsg('🏁 ' + e.player.name + ' gana la carrera en ' + fmtTime(raceElapsedMs) + '.');
       Sound.win();
       confettiBurst();
       setTimeout(function () { $('winOverlay').hidden = false; }, 900);
@@ -1398,8 +1507,47 @@
     var sbClient = null;
     var Room = {
       active: false, code: null, isHost: false, amHost: false,
-      channel: null, myId: null, players: []
+      channel: null, myId: null, players: [], seriesTotal: 3
     };
+
+    /* ---------- SERIE de partidas (solo salas online) ----------
+       El anfitrión elige al crear la sala cuántas partidas se juegan
+       (1–10). Cada partida ganada da una ficha 🟡 a su ganador; al
+       terminar la serie, el ranking final ordena a los jugadores por
+       fichas y el que más tenga se lleva el oso de peluche 🧸.
+       El estado viaja en el payload de 'game_start' (total, índice y
+       fichas) para que todos los móviles coincidan sin servidor.   */
+    var Series = {
+      active: false, total: 1, current: 0,
+      chips: {}, finished: false, recordedIndex: 0
+    };
+    function seriesReset(total, rosterIds) {
+      Series.active = true;
+      Series.total = Math.max(1, Math.min(10, total | 0)) || 1;
+      Series.current = 1;
+      Series.chips = {};
+      rosterIds.forEach(function (id) { Series.chips[id] = 0; });
+      Series.finished = false;
+      Series.recordedIndex = 0;
+    }
+    function seriesStandings() {
+      return core.state.players.map(function (p, i) {
+        return { player: p, chips: Series.chips[p.id] || 0, order: i };
+      }).sort(function (a, b) {
+        return (b.chips - a.chips) || (a.order - b.order);
+      });
+    }
+    function updateChipsBadges() {
+      core.state.players.forEach(function (p) {
+        var b = $('chips-' + p.id);
+        if (!b) return;
+        b.hidden = !Series.active;
+        b.textContent = '🟡 ' + (Series.chips[p.id] || 0);
+      });
+    }
+    function seriesLabel() {
+      return 'Partida ' + Series.current + ' de ' + Series.total;
+    }
 
     function sb() {
       if (!window.supabase || !window.supabase.createClient) return null;
@@ -1413,7 +1561,14 @@
       for (var i = 0; i < 4; i++) out += abc.charAt(Math.floor(Math.random() * abc.length));
       return out;
     }
-    function createRoom() { enterRoom(genCode(), true); }
+    function chosenSeriesTotal() {
+      var v = parseInt(($('seriesCount') || {}).value, 10);
+      return Math.max(1, Math.min(10, isNaN(v) ? 3 : v));
+    }
+    function createRoom() {
+      Room.seriesTotal = chosenSeriesTotal();
+      enterRoom(genCode(), true);
+    }
     function formMsg(text) {
       var n = $('formNote');
       n.textContent = text || '';
@@ -1456,8 +1611,9 @@
       });
       ch.on('broadcast', { event: 'game_start' }, function (msg) {
         var roster = (msg && msg.payload && msg.payload.roster) || [];
+        var series = (msg && msg.payload && msg.payload.series) || null;
         var mine = roster.some(function (r) { return r.id === Room.myId; });
-        if (mine) beginOnlineRace(roster);
+        if (mine) beginOnlineRace(roster, series);
         else setLobbyStatus('Hay una carrera en curso en esta sala. Si el anfitrión lanza una revancha con todos dentro, entrarás en ella.');
       });
       ch.on('broadcast', { event: 'rematch_request' }, function (msg) {
@@ -1471,7 +1627,7 @@
       showLobby();
       ch.subscribe(function (status) {
         if (status === 'SUBSCRIBED') {
-          var tracked = ch.track({ id: Room.myId, name: myName(), host: isHost, joinedAt: Date.now() });
+          var tracked = ch.track({ id: Room.myId, name: myName(), host: isHost, joinedAt: Date.now(), series: isHost ? Room.seriesTotal : undefined });
           if (tracked && tracked.catch) tracked.catch(function () {});
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setLobbyStatus('No se pudo conectar con la sala. Comprueba tu conexión y vuelve a intentarlo.');
@@ -1502,6 +1658,8 @@
       players.forEach(function (p) { if (p.host && !host) host = p; });
       if (!host) host = players[0] || null;   // si el anfitrión se va, hereda el más antiguo
       Room.amHost = !!host && host.id === Room.myId;
+      if (host && host.series) Room.seriesTotal = Math.max(1, Math.min(10, host.series | 0)) || 1;
+      $('lobbySeries').textContent = 'Serie de ' + Room.seriesTotal + (Room.seriesTotal === 1 ? ' partida' : ' partidas') + ' · cada ganador, una ficha 🟡 · el campeón se lleva el oso 🧸';
       var ul = $('lobbyPlayers');
       ul.innerHTML = '';
       players.forEach(function (p, i) {
@@ -1521,6 +1679,7 @@
       var startBtn = $('lobbyStartBtn');
       startBtn.hidden = !Room.amHost;
       startBtn.disabled = players.length < 2;
+      startBtn.textContent = Room.seriesTotal > 1 ? 'Empezar la serie' : 'Empezar carrera';
       if ($('lobbyOverlay').hidden) return;
       if (players.length === 0) setLobbyStatus('Conectando con la sala…');
       else if (players.length >= MAX_PLAYERS) setLobbyStatus('¡Sala llena! A correr en cuanto el anfitrión dé la salida.');
@@ -1537,23 +1696,39 @@
       syncLobby();
     }
 
-    function beginOnlineRace(roster) {
+    function beginOnlineRace(roster, seriesMeta) {
       var defs = roster.map(function (r, i) {
         return { id: r.id, name: r.name, colorIdx: i, isAI: false };
       });
+      // Estado de la serie: el anfitrión lo manda en cada 'game_start'
+      // y todos lo adoptan tal cual (total, partida actual y fichas).
+      if (seriesMeta) {
+        Room.seriesTotal = Math.max(1, Math.min(10, seriesMeta.total | 0)) || 1;
+        Series.active = true;
+        Series.total = Room.seriesTotal;
+        Series.current = Math.max(1, seriesMeta.index | 0) || 1;
+        Series.chips = {};
+        defs.forEach(function (d) { Series.chips[d.id] = (seriesMeta.chips && seriesMeta.chips[d.id]) || 0; });
+        Series.finished = false;
+        Series.recordedIndex = 0;
+      } else if (!Series.active) {
+        seriesReset(Room.seriesTotal, defs.map(function (d) { return d.id; }));
+      }
       gameConfig = { mode: 'online', defs: defs };
       $('lobbyOverlay').hidden = true;
       $('winOverlay').hidden = true;
       $('startOverlay').hidden = true;
       Transport.dispatch({ type: 'START', mode: 'online', players: defs });
-      setMsg('🌐 Carrera online en la sala ' + Room.code + ' con ' + defs.length + ' camellos. ¡A lanzar!');
+      setMsg('🌐 ' + seriesLabel() + ' en la sala ' + Room.code + ' con ' + defs.length + ' camellos. ¡A lanzar!');
     }
 
     function startOnlineRaceFromLobby() {
       if (!Room.channel || Room.players.length < 2) return;
       var roster = Room.players.map(function (p) { return { id: p.id, name: p.name }; });
-      Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster } });
-      beginOnlineRace(roster);
+      seriesReset(Room.seriesTotal, roster.map(function (r) { return r.id; }));
+      var meta = { total: Series.total, index: 1, chips: Series.chips };
+      Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta } });
+      beginOnlineRace(roster, meta);
     }
 
     function onlineRematchAction() {
@@ -1564,12 +1739,21 @@
           roster = gameConfig.defs.map(function (d) { return { id: d.id, name: d.name }; });
         }
         if (roster.length < 2) return;
-        Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster } });
-        beginOnlineRace(roster);
+        var meta;
+        if (Series.active && !Series.finished && Series.current < Series.total) {
+          // Siguiente partida de la serie, con las fichas acumuladas.
+          meta = { total: Series.total, index: Series.current + 1, chips: Series.chips };
+        } else {
+          // Serie terminada (o sin serie): empieza una nueva de cero.
+          seriesReset(Room.seriesTotal, roster.map(function (r) { return r.id; }));
+          meta = { total: Series.total, index: 1, chips: Series.chips };
+        }
+        Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta } });
+        beginOnlineRace(roster, meta);
       } else {
         Room.channel.send({ type: 'broadcast', event: 'rematch_request', payload: { name: myName() } });
         $('againBtn').disabled = true;
-        $('againBtn').textContent = 'Revancha pedida ✓';
+        $('againBtn').textContent = Series.active && !Series.finished ? 'Siguiente pedida ✓' : 'Revancha pedida ✓';
       }
     }
 
@@ -1583,6 +1767,9 @@
       Room.code = null;
       Room.players = [];
       Room.amHost = false;
+      Series.active = false;
+      Series.finished = false;
+      Series.chips = {};
       $('lobbyOverlay').hidden = true;
     }
 
@@ -1602,6 +1789,7 @@
     /* --- controles --- */
     function startGame(mode) {
       Sound.unlock();
+      Series.active = false;   // la serie de fichas es solo de las salas online
       var n1 = ($('name1').value || '').trim() || 'Jugador 1';
       var defs;
       if (mode === 'ai') {
@@ -1627,6 +1815,7 @@
       });
       $('name2Wrap').style.display = mode === 'duo' ? '' : 'none';
       $('codeWrap').style.display = mode === 'join' ? '' : 'none';
+      $('seriesWrap').style.display = mode === 'create' ? '' : 'none';
       $('name1Label').textContent =
         mode === 'duo' ? 'Nombre del jugador 1 · rojo (izquierda)' :
         (mode === 'create' || mode === 'join') ? 'Tu nombre' :
