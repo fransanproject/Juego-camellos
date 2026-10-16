@@ -83,9 +83,11 @@
       @media (min-width: 920px) {
         .layout { grid-template-columns: minmax(280px, 360px) 1fr; align-items: start; }
         .board-col { position: sticky; top: 14px; }
-        /* El tablero crece hasta ocupar casi todo el alto disponible */
+        /* El tablero ocupa casi todo el alto disponible y mide siempre
+           lo mismo: su ancho depende solo del alto útil fijado al
+           cargar, nunca del número de jugadores ni de la pista. */
         .board-wrap { display: flex; justify-content: center; }
-        canvas#board { width: min(100%, calc((var(--appH) - 150px) * 0.74074)); }
+        canvas#board { flex: none; width: min(100%, calc((var(--appH) - 150px) * 0.74074)); }
       }
 
       .card {
@@ -122,18 +124,24 @@
       .settings-panel .icon-btn { width: 100%; text-align: left; padding: 9px 12px; }
 
       /* ---------- race track ---------- */
-      .track-card { padding: 10px 12px 6px; margin-bottom: 16px; }
+      /* La pista ocupa SIEMPRE lo mismo, corran 2 camellos o 8: el
+         contenedor de carriles tiene una altura fija y los carriles se
+         reparten ese espacio. Lo único que cambia con el número de
+         jugadores es el tamaño de los camellos (y lo compacta que va
+         su etiqueta), nunca el tamaño de la pista ni el del tablero. */
+      .track-card { padding: 10px 12px 6px; margin-bottom: 16px; --lanes-total: 176px; }
       .track-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px; }
       .track-head h2 { font-family: "Lilita One", cursive; font-weight: 400; margin: 0; font-size: 1.08rem; }
       .track-head span { font-weight: 800; color: var(--ink-soft); font-size: .8rem; text-align: right; }
-      .lane { padding: 4px 0 2px; }
+      #lanes { display: flex; flex-direction: column; height: var(--lanes-total); }
+      .lane { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding: 3px 0 2px; position: relative; }
       .lane + .lane { border-top: 2px dashed var(--track-line); }
-      .lane-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+      .lane-top { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; min-height: 0; }
       .lane-name { font-weight: 900; display: inline-flex; gap: 8px; align-items: center; }
-      .lane-name .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); }
+      .lane-name .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); flex: none; }
       .lane-pos { font-weight: 900; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
       .lane-run {
-        position: relative; height: 44px; border-radius: 10px;
+        position: relative; flex: 1 1 auto; min-height: 16px; border-radius: 10px;
         background:
           radial-gradient(1.4px 1.4px at 14px 10px, rgba(255, 244, 200, .85) 50%, transparent 52%),
           radial-gradient(1.1px 1.1px at 46px 26px, rgba(255, 255, 255, .55) 50%, transparent 52%),
@@ -151,7 +159,11 @@
         letter-spacing: .12em; color: var(--gold);
       }
       .camel {
-        position: absolute; bottom: 1px; left: 0; width: 44px; height: 44px;
+        /* El camello llena el alto de su carril (con un tope): si los
+           carriles se estrechan porque corren más camellos, él se
+           encoge solo. El tablero, en cambio, no se toca. */
+        position: absolute; bottom: 1px; left: 0; height: calc(100% - 2px); width: auto;
+        aspect-ratio: 1 / 1; max-width: 44px; max-height: 44px;
         transform: translateX(0);
         transition: left .8s cubic-bezier(.45, .05, .35, 1);
         will-change: left;
@@ -184,14 +196,26 @@
       .lobby-list .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); flex: none; }
       .lobby-list .tag { margin-left: auto; font-size: .75rem; font-weight: 900; color: var(--ink-soft); white-space: nowrap; }
       .names input.code-input { text-transform: uppercase; letter-spacing: .3em; font-size: 1.15rem; text-align: center; }
-      /* Con muchos corredores (salas online), carriles más compactos */
-      .track-card.many .lane { padding: 3px 0 1px; }
-      .track-card.many .lane-run { height: 32px; }
-      .track-card.many .camel { width: 32px; height: 32px; }
-      @media (max-width: 919px) {
-        .track-card.many .lane-run { height: 32px; }
-        .track-card.many .camel { width: 32px; height: 32px; }
+      /* Con muchos corredores (5–8), la representación se compacta
+         DENTRO del mismo espacio fijo: cada carril pasa a ser una fila
+         con la etiqueta (nombre, fichas y posición) en una columna
+         estrecha a la izquierda y la pista libre a la derecha, para
+         que el camello —más pequeño, a la medida del carril— se siga
+         viendo avanzar. La altura total de la pista no cambia. */
+      .track-card.many .lane { flex-direction: row; align-items: stretch; gap: 6px; padding: 2px 0; }
+      .track-card.many .lane-top {
+        flex: 0 0 122px; width: 122px; margin: 0; padding: 1px 6px;
+        flex-direction: row; align-items: center; justify-content: space-between; gap: 4px;
+        border-radius: 8px; background: var(--field); line-height: 1.2; overflow: hidden;
       }
+      .track-card.many .lane-name { gap: 4px; font-size: .62rem; white-space: nowrap; min-width: 0; }
+      .track-card.many .lane-name .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .track-card.many .lane-name .dot { width: 9px; height: 9px; border-width: 1.5px; }
+      .track-card.many .lane-name small { display: none; }
+      .track-card.many .lane-pos { font-size: .62rem; flex: none; }
+      .track-card.many .chips-badge { font-size: .58rem; padding: 0 4px; border-width: 1.5px; flex: none; }
+      .track-card.many .finish-label { display: none; }
+      .track-card.many .finish-flag { font-size: 10px; top: 1px; right: 3px; }
 
       /* ---------- board ---------- */
       .board-card { overflow: hidden; }
@@ -346,15 +370,19 @@
         .statusbar { margin-bottom: 10px; padding: 8px 12px; gap: 6px 8px; }
         .status-msg { font-size: .92rem; }
         .icon-btn { padding: 5px 9px; font-size: .85rem; }
-        .track-card { margin-bottom: 10px; padding: 10px 12px 6px; }
-        .lane { padding: 4px 0 2px; }
-        .lane-run { height: 34px; }
-        .camel { width: 34px; height: 34px; }
+        .track-card { margin-bottom: 10px; padding: 10px 12px 6px; --lanes-total: 148px; }
+        .camel { max-width: 34px; max-height: 34px; }
         .step-marks { display: none; }
         .legend.compact { margin-top: 6px; }
         .legend.compact span { font-size: .72rem; }
         .board-wrap { display: flex; justify-content: center; }
-        canvas#board { width: min(100%, calc((var(--appH) - 372px - env(safe-area-inset-bottom, 0px)) * 0.74074)); }
+        /* Tablero INAMOVIBLE: su tamaño sale solo del alto útil de la
+           pantalla (fijado al cargar) menos un descuento fijo — el de
+           la barra de estado, la pista (que ya mide siempre lo mismo)
+           y el pie del tablero. El número de jugadores NO entra en la
+           fórmula: con 2 camellos el tablero mide exactamente igual
+           que con 8; lo que se encoge es el camello, no el campo. */
+        canvas#board { flex: none; width: min(100%, calc((var(--appH) - 396px - env(safe-area-inset-bottom, 0px)) * 0.74074)); }
         .board-hint { padding: 8px 10px 10px; font-size: .85rem; }
         .awning { height: 20px; }
       }
