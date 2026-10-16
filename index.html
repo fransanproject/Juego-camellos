@@ -454,10 +454,10 @@
           <span><i style="background:#f2b33d"></i> 5 pasos</span>
         </div>
         <div class="names" id="nameFields">
-          <label><span id="name1Label">Nombre del jugador 1 · rojo (izquierda)</span>
+          <label><span id="name1Label">Nombre del jugador 1 · rojo</span>
             <input id="name1" type="text" maxlength="14" value="Jugador 1" autocomplete="off" />
           </label>
-          <label id="name2Wrap">Nombre del jugador 2 · azul (derecha)
+          <label id="name2Wrap">Nombre del jugador 2 · azul
             <input id="name2" type="text" maxlength="14" value="Jugador 2" autocomplete="off" />
           </label>
           <label id="aiCountWrap">Rivales de la IA contra ti
@@ -593,11 +593,22 @@
       }
       function start(mode, defs) {
         state.mode = mode;
+        /* Sorteo de posiciones al empezar cada partida: a cada jugador
+           le toca un carril y una zona de lanzamiento al azar, para que
+           la ventaja de lanzar desde un lado u otro no sea siempre del
+           mismo. Si el anfitrión online ya sorteó (defs con slot), se
+           respeta su sorteo para que todos los móviles coincidan. */
+        var slots = defs.map(function (_, k) { return k; });
+        for (var si = slots.length - 1; si > 0; si--) {
+          var sj = Math.floor(Math.random() * (si + 1));
+          var st = slots[si]; slots[si] = slots[sj]; slots[sj] = st;
+        }
         state.players = defs.map(function (d, i) {
           return {
             id: d.id || ('p' + i), name: d.name,
             colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i),
-            isAI: !!d.isAI, pos: 0
+            isAI: !!d.isAI, pos: 0,
+            slot: (typeof d.slot === 'number' ? d.slot : slots[i])
           };
         });
         state.winner = null;
@@ -776,8 +787,12 @@
       }
       function setPlayers(defs) {
         gen++;
-        pads = computePads(defs.length);
-        owners = defs.map(function (d, i) {
+        // Las zonas de lanzamiento se reparten según el slot sorteado
+        // en el CORE, no según el orden de llegada: en cada partida a
+        // cada jugador le toca lanzar desde un sitio distinto.
+        var orderedDefs = defs.slice().sort(function (a, b) { return (a.slot || 0) - (b.slot || 0); });
+        pads = computePads(orderedDefs.length);
+        owners = orderedDefs.map(function (d, i) {
           return { id: d.id, name: d.name, colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i), human: !d.isAI, idx: i };
         });
         balls = {};
@@ -1295,7 +1310,10 @@
     function buildLanes() {
       lanesEl.innerHTML = '';
       document.querySelector('.track-card').classList.toggle('many', core.state.players.length > 4);
-      core.state.players.forEach(function (p) {
+      // Los carriles se pintan en el orden sorteado (slot), no en el
+      // orden de llegada: cada partida la pista se reparte de nuevo.
+      var ordered = core.state.players.slice().sort(function (a, b) { return (a.slot || 0) - (b.slot || 0); });
+      ordered.forEach(function (p) {
         var lane = document.createElement('div');
         lane.className = 'lane';
         lane.innerHTML =
@@ -1352,7 +1370,7 @@
       $('boardHint').textContent =
         s.phase !== 'playing' ? 'La partida ha terminado.' :
         s.mode === 'online' ? 'Sala ' + (Room.code || '') + ' · online: desliza el dedo hacia arriba para lanzar tu bola y mira la pista: los camellos de todos avanzan en directo con cada acierto.' :
-        s.mode === 'duo' ? '¡A la vez! Cada uno desliza el dedo hacia arriba desde su lado del tablero (izquierda y derecha) para lanzar: cuanto más rápido el deslizamiento, más fuerte el tiro. En cuanto la bola vuelve, a lanzar otra.' :
+        s.mode === 'duo' ? '¡A la vez! Cada uno desliza el dedo hacia arriba desde su zona de lanzamiento (la de su color: las posiciones se sortean en cada partida) para lanzar: cuanto más rápido el deslizamiento, más fuerte el tiro. En cuanto la bola vuelve, a lanzar otra.' :
         'Desliza el dedo hacia arriba sobre el tablero para lanzar tu bola: la dirección y la velocidad del deslizamiento mandan. Los camellos de la IA lanzan a la vez que tú: en cuanto tu bola vuelva, a por otra.';
     }
 
@@ -1441,7 +1459,7 @@
       if (core.state.mode === 'online' && Series.active) {
         setMsg('🌐 ' + seriesLabel() + ' de la serie · el ganador se lleva una ficha 🟡. ¡A lanzar!');
       } else {
-        setMsg('¡A la vez! Lanzad sin parar: el primero en llegar a la meta gana.');
+        setMsg('🎲 Posiciones sorteadas al azar: cada uno lanza desde la zona de su color. ¡A la vez, sin parar!');
       }
     });
     Transport.on('throw', function (e) {
@@ -1626,6 +1644,19 @@
       for (var i = 0; i < 4; i++) out += abc.charAt(Math.floor(Math.random() * abc.length));
       return out;
     }
+    /* Sorteo de posiciones para la sala: lo hace el anfitrión y viaja
+       en el 'game_start', para que el orden de carriles y de zonas de
+       lanzamiento sea el mismo en todos los móviles de la sala. */
+    function drawSlots(roster) {
+      var idx = roster.map(function (_, k) { return k; });
+      for (var i = idx.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+      }
+      var map = {};
+      roster.forEach(function (r, k) { map[r.id] = idx[k]; });
+      return map;
+    }
     function chosenSeriesTotal() {
       var v = parseInt(($('seriesCount') || {}).value, 10);
       return Math.max(1, Math.min(10, isNaN(v) ? 3 : v));
@@ -1677,8 +1708,9 @@
       ch.on('broadcast', { event: 'game_start' }, function (msg) {
         var roster = (msg && msg.payload && msg.payload.roster) || [];
         var series = (msg && msg.payload && msg.payload.series) || null;
+        var slots = (msg && msg.payload && msg.payload.slots) || null;
         var mine = roster.some(function (r) { return r.id === Room.myId; });
-        if (mine) beginOnlineRace(roster, series);
+        if (mine) beginOnlineRace(roster, series, slots);
         else setLobbyStatus('Hay una carrera en curso en esta sala. Si el anfitrión lanza una revancha con todos dentro, entrarás en ella.');
       });
       ch.on('broadcast', { event: 'rematch_request' }, function (msg) {
@@ -1761,9 +1793,9 @@
       syncLobby();
     }
 
-    function beginOnlineRace(roster, seriesMeta) {
+    function beginOnlineRace(roster, seriesMeta, slots) {
       var defs = roster.map(function (r, i) {
-        return { id: r.id, name: r.name, colorIdx: i, isAI: false };
+        return { id: r.id, name: r.name, colorIdx: i, isAI: false, slot: slots ? slots[r.id] : undefined };
       });
       // Estado de la serie: el anfitrión lo manda en cada 'game_start'
       // y todos lo adoptan tal cual (total, partida actual y fichas).
@@ -1792,8 +1824,9 @@
       var roster = Room.players.map(function (p) { return { id: p.id, name: p.name }; });
       seriesReset(Room.seriesTotal, roster.map(function (r) { return r.id; }));
       var meta = { total: Series.total, index: 1, chips: Series.chips };
-      Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta } });
-      beginOnlineRace(roster, meta);
+      var slots = drawSlots(roster);
+      Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta, slots: slots } });
+      beginOnlineRace(roster, meta, slots);
     }
 
     function onlineRematchAction() {
@@ -1813,8 +1846,9 @@
           seriesReset(Room.seriesTotal, roster.map(function (r) { return r.id; }));
           meta = { total: Series.total, index: 1, chips: Series.chips };
         }
-        Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta } });
-        beginOnlineRace(roster, meta);
+        var slots = drawSlots(roster);
+        Room.channel.send({ type: 'broadcast', event: 'game_start', payload: { roster: roster, series: meta, slots: slots } });
+        beginOnlineRace(roster, meta, slots);
       } else {
         Room.channel.send({ type: 'broadcast', event: 'rematch_request', payload: { name: myName() } });
         $('againBtn').disabled = true;
@@ -1893,9 +1927,9 @@
       $('codeWrap').style.display = mode === 'join' ? '' : 'none';
       $('seriesWrap').style.display = mode === 'create' ? '' : 'none';
       $('name1Label').textContent =
-        mode === 'duo' ? 'Nombre del jugador 1 · rojo (izquierda)' :
+        mode === 'duo' ? 'Nombre del jugador 1 · rojo' :
         (mode === 'create' || mode === 'join') ? 'Tu nombre' :
-        'Nombre del jugador 1 · rojo (izquierda)';
+        'Nombre del jugador 1 · rojo';
       $('startBtn').textContent =
         mode === 'create' ? 'Crear sala' :
         mode === 'join' ? 'Unirse a la sala' : '¡A jugar!';
