@@ -751,7 +751,7 @@
         var orderedDefs = defs.slice().sort(function (a, b) { return (a.slot || 0) - (b.slot || 0); });
         pads = computePads(orderedDefs.length);
         owners = orderedDefs.map(function (d, i) {
-          return { id: d.id, name: d.name, colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i), human: !d.isAI, idx: i };
+          return { id: d.id, name: d.name, colorIdx: (typeof d.colorIdx === 'number' ? d.colorIdx : i), human: !d.isAI, ghost: !!d.ghost, idx: i };
         });
         balls = {};
         owners.forEach(function (o) { balls[o.id] = makeBall(o.idx); });
@@ -956,7 +956,10 @@
         drawTable(field, deep, ink);
         HOLES.forEach(drawHole);
         PEGS.forEach(drawPeg);
-        owners.forEach(drawPad);
+        // Las zonas con nombre solo se pintan para las bolas visibles:
+        // los nombres de los rivales viven en su carril de la pista,
+        // nunca amontonados sobre el tablero.
+        owners.forEach(function (o) { if (!o.ghost) drawPad(o); });
         // trayectorias previstas mientras cada jugador desliza el dedo:
         // la flecha y los puntos siguen la velocidad del swipe en curso
         Object.keys(swipes).forEach(function (pid) {
@@ -990,6 +993,7 @@
         });
         // sombras de las bolas (las anclan a la mesa)
         owners.forEach(function (o) {
+          if (o.ghost) return;
           var ball = balls[o.id];
           if (!ball || ball.state === 'gone') return;
           var bs = ballScreen(ball);
@@ -1002,6 +1006,7 @@
           return (ba ? ba.y : 0) - (bb ? bb.y : 0);
         });
         order.forEach(function (o) {
+          if (o.ghost) return;
           var ball = balls[o.id];
           if (!ball || ball.state === 'gone') return;
           var bs = ballScreen(ball);
@@ -1049,9 +1054,9 @@
         ball.vy += GRAV * dt;
         ball.x += ball.vx * dt;
         ball.y += ball.vy * dt;
-        if (ball.x < BALL_R + 8) { ball.x = BALL_R + 8; ball.vx = -ball.vx * 0.72; bounceSnd(); }
-        if (ball.x > BW - BALL_R - 8) { ball.x = BW - BALL_R - 8; ball.vx = -ball.vx * 0.72; bounceSnd(); }
-        if (ball.y < BALL_R + 8) { ball.y = BALL_R + 8; ball.vy = -ball.vy * 0.72; bounceSnd(); }
+        if (ball.x < BALL_R + 8) { ball.x = BALL_R + 8; ball.vx = -ball.vx * 0.72; if (!owner.ghost) bounceSnd(); }
+        if (ball.x > BW - BALL_R - 8) { ball.x = BW - BALL_R - 8; ball.vx = -ball.vx * 0.72; if (!owner.ghost) bounceSnd(); }
+        if (ball.y < BALL_R + 8) { ball.y = BALL_R + 8; ball.vy = -ball.vy * 0.72; if (!owner.ghost) bounceSnd(); }
         for (var i = 0; i < PEGS.length; i++) {
           var p = PEGS[i];
           var dx = ball.x - p.x, dy = ball.y - p.y;
@@ -1063,7 +1068,7 @@
             if (dot < 0) {
               ball.vx -= 1.78 * dot * nx;
               ball.vy -= 1.78 * dot * ny;
-              bounceSnd();
+              if (!owner.ghost) bounceSnd();
             }
           }
         }
@@ -1102,7 +1107,8 @@
         var ball = balls[ownerId];
         if (!active || !ball || ball.state !== 'ready') return false;
         ball.vx = vx; ball.vy = vy; ball.state = 'flying'; ball.t = 0;
-        Sound.launch();
+        var ow = owners.filter(function (x) { return x.id === ownerId; })[0];
+        if (!ow || !ow.ghost) Sound.launch();
         startLoop();
         return true;
       }
@@ -1352,10 +1358,26 @@
       pop.classList.add('show');
     }
 
+    /* El jugador de ESTE móvil: en online, el de la sala; contra la
+       IA, el humano. Solo sus aciertos se celebran en el tablero. */
+    function localPlayerId() {
+      if (core.state.mode === 'online') return Room.myId;
+      var me = core.state.players.filter(function (p) { return !p.isAI; })[0];
+      return me ? me.id : null;
+    }
+
     Board.setOnSettle(function (ownerId, points, hole) {
       if (core.state.phase !== 'playing') return;
-      if (points > 0) Sound.score(points); else Sound.miss();
-      showScorePop(points, hole);
+      // Solo salen en pantalla los números (+N / ¡Fuera!) y los sonidos
+      // de las bolas que se ven en este tablero: la tuya —y, en el dúo
+      // a pantalla compartida, también la del otro jugador del mismo
+      // móvil—. Los rivales (IA u online) no inundan la pantalla: su
+      // avance se sigue en tiempo real en la pista, en sus camellos.
+      var shown = core.state.mode === 'duo' || ownerId === localPlayerId();
+      if (shown) {
+        if (points > 0) Sound.score(points); else Sound.miss();
+        showScorePop(points, hole);
+      }
       Transport.dispatch({ type: 'THROW', playerId: ownerId, points: points });
       if (core.state.mode === 'online' && Room.channel) {
         // Evento diminuto a toda la sala: "este jugador avanza N pasos".
@@ -1392,6 +1414,16 @@
         // En online cada móvil dibuja solo su propia bola en su tablero;
         // los demás camellos avanzan en la pista con los eventos que llegan.
         boardDefs = boardDefs.filter(function (p) { return p.id === Room.myId; });
+      } else if (core.state.mode === 'ai') {
+        // Contra la IA, el tablero es solo tuyo: las bolas de los
+        // rivales corren como «fantasmas» —su física sigue y puntúan
+        // igual, pero no se dibujan, ni su zona con nombre, ni salen
+        // sus números—; su avance se ve en la pista, en sus camellos.
+        // Con 8 corredores ya no hay una maraña de bolas rebotando en
+        // la que no se distingue la tuya.
+        boardDefs = boardDefs.map(function (p) {
+          return { id: p.id, name: p.name, colorIdx: p.colorIdx, isAI: p.isAI, slot: p.slot, ghost: !!p.isAI };
+        });
       }
       Board.setPlayers(boardDefs);
       Board.setActive(true);
