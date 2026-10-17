@@ -97,13 +97,7 @@
         box-shadow: 0 6px 0 var(--shadow);
       }
 
-      /* ---------- status bar ---------- */
-      .statusbar {
-        position: relative;
-        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px;
-        padding: 10px 14px; margin-bottom: 16px;
-      }
-      .clock { font-weight: 900; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+      /* ---------- botón de ajustes (en la cabecera de la pista) ---------- */
       .icon-btn {
         font: inherit; font-weight: 900; cursor: pointer; font-size: .9rem;
         border: 2.5px solid var(--card-edge); border-radius: 10px;
@@ -111,10 +105,11 @@
         box-shadow: 0 3px 0 var(--shadow); white-space: nowrap;
       }
       .icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shadow); }
-      /* Panel de ajustes: cuelga del botón ⚙ de arriba a la derecha y
-         guarda los controles secundarios para liberar la pantalla. */
+      /* Panel de ajustes: cuelga del botón ⚙ en la cabecera de la
+         pista y guarda los controles secundarios para liberar la
+         pantalla. */
       .settings-panel {
-        position: absolute; top: calc(100% + 8px); right: 12px; z-index: 35;
+        position: absolute; top: calc(100% + 8px); right: 0; z-index: 35;
         display: grid; gap: 8px; min-width: 210px; padding: 10px;
         background: var(--card); border: 3px solid var(--card-edge);
         border-radius: 14px; box-shadow: 0 8px 0 var(--shadow);
@@ -131,7 +126,7 @@
          esto: su tamaño sale solo del alto de la pantalla, siempre
          igual corran 2 o corran 8. */
       .track-card { padding: 10px 12px 6px; margin-bottom: 16px; --lanes-total: 176px; }
-      .track-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px; }
+      .track-head { position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
       .track-head h2 { font-family: "Lilita One", cursive; font-weight: 400; margin: 0; font-size: 1.08rem; }
       .track-head span { font-weight: 800; color: var(--ink-soft); font-size: .8rem; text-align: right; }
       #lanes { display: flex; flex-direction: column; height: var(--lanes-total); }
@@ -171,16 +166,6 @@
       .camel img { width: 100%; height: 100%; object-fit: contain; display: block; }
       .camel.running img { animation: gallop .34s ease-in-out infinite; }
       @keyframes gallop { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(-1.6deg); } }
-      .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px 0 4px; }
-      .legend span {
-        display: inline-flex; align-items: center; gap: 7px; font-weight: 900; font-size: .9rem;
-        border: 2px solid var(--card-edge); border-radius: 999px; padding: 4px 12px 4px 6px; background: var(--field);
-      }
-      .legend i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--card-edge); display: inline-block; }
-      .legend.compact { margin: 8px 0 2px; gap: 6px; }
-      .legend.compact span { font-size: .78rem; padding: 3px 9px 3px 5px; border-width: 2px; }
-      .legend.compact i { width: 14px; height: 14px; }
-
       /* ---------- sala online ---------- */
       .room-code {
         font-family: "Lilita One", cursive; font-size: 2.4rem; line-height: 1.1;
@@ -290,9 +275,6 @@
         .sheet { padding: 18px 16px; border-radius: 16px; }
         .sheet h1 { font-size: 1.6rem; }
         .sheet p { font-size: .92rem; margin: 6px 0; line-height: 1.35; }
-        .sheet .legend { margin: 10px 0 2px; gap: 6px; }
-        .sheet .legend span { font-size: .8rem; padding: 3px 10px 3px 5px; }
-        .sheet .legend i { width: 15px; height: 15px; }
         .sheet .names { margin-top: 12px; gap: 8px; }
         .sheet .names input { padding: 8px 10px; }
         .sheet .mode-grid { gap: 10px; margin-top: 12px; }
@@ -360,13 +342,9 @@
       /* ---------- móvil: pista y tablero en la misma pantalla ---------- */
       @media (max-width: 919px) {
         .wrap { padding: 8px 6px calc(16px + env(safe-area-inset-bottom, 0px)); }
-        .statusbar { margin-bottom: 8px; padding: 7px 10px; gap: 6px 8px; }
-        .status-msg { font-size: .92rem; }
         .icon-btn { padding: 5px 9px; font-size: .85rem; }
         .track-card { margin-bottom: 8px; padding: 8px 10px 4px; --lanes-total: 136px; }
         .camel { max-width: 32px; max-height: 32px; }
-        .legend.compact { margin-top: 4px; }
-        .legend.compact span { font-size: .72rem; }
         .track-card.many .lane-run { min-height: 10px; }
         .board-wrap { display: flex; justify-content: center; }
         /* Tablero INAMOVIBLE: su tamaño sale solo del alto útil de la
@@ -393,16 +371,9 @@
   </head>
   <body class="scroll-locked">
     <div class="wrap">
-      <!-- Status bar: solo el reloj de carrera y el botón de ajustes -->
-      <div class="card statusbar">
-        <span class="clock" id="raceClock" aria-label="Tiempo de carrera">⏱ 0:00</span>
-        <button class="icon-btn" id="settingsBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Abrir los ajustes">⚙ Ajustes</button>
-        <div class="settings-panel" id="settingsPanel" hidden>
-          <button class="icon-btn" id="restartBtn" type="button">↻ Reiniciar partida</button>
-          <button class="icon-btn" id="menuBtn" type="button">Cambiar modo</button>
-          <button class="icon-btn" id="soundBtn" type="button" aria-label="Activar o silenciar el sonido">🔊 Sonido</button>
-        </div>
-      </div>
+      <!-- Sin barra superior: el botón de ajustes va en la cabecera
+           de la pista, a la derecha del título (donde antes ponía el
+           texto «a la vez, sin turnos»). Sin contador de tiempo. -->
 
       <div class="layout">
         <div class="side-col">
@@ -410,15 +381,14 @@
           <section class="card track-card" aria-label="Pista de la carrera">
             <div class="track-head">
               <h2>La carrera</h2>
-              <span>Meta: 30 puntos · a la vez, sin turnos</span>
+              <button class="icon-btn" id="settingsBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Abrir los ajustes">⚙ Ajustes</button>
+              <div class="settings-panel" id="settingsPanel" hidden>
+                <button class="icon-btn" id="restartBtn" type="button">↻ Reiniciar partida</button>
+                <button class="icon-btn" id="menuBtn" type="button">Cambiar modo</button>
+                <button class="icon-btn" id="soundBtn" type="button" aria-label="Activar o silenciar el sonido">🔊 Sonido</button>
+              </div>
             </div>
             <div id="lanes"></div>
-            <div class="legend compact" style="justify-content:flex-start;">
-              <span><i style="background:#fdf6e3"></i> 1 paso</span>
-              <span><i style="background:#57a8d8"></i> 2 pasos</span>
-              <span><i style="background:#e2574c"></i> 3 pasos</span>
-              <span><i style="background:#f2b33d"></i> 5 pasos</span>
-            </div>
           </section>
         </div>
 
@@ -441,12 +411,6 @@
         <div class="garland" aria-hidden="true"></div>
         <h1>El juego de los <span class="accent">camellos</span></h1>
         <p>El clásico de feria, <strong>a tiempo real y sin turnos</strong>: cuela las bolas por los agujeros en triángulo —la punta vale 5 pasos— y haz avanzar a tu camello. El primero en cruzar la meta, gana.</p>
-        <div class="legend">
-          <span><i style="background:#fdf6e3"></i> 1 paso</span>
-          <span><i style="background:#57a8d8"></i> 2 pasos</span>
-          <span><i style="background:#e2574c"></i> 3 pasos</span>
-          <span><i style="background:#f2b33d"></i> 5 pasos</span>
-        </div>
         <div class="names" id="nameFields">
           <label><span id="name1Label">Nombre del jugador 1 · rojo</span>
             <input id="name1" type="text" maxlength="14" value="Jugador 1" autocomplete="off" />
@@ -1354,13 +1318,12 @@
       var s = Math.floor(ms / 1000);
       return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
     }
-    // El reloj suma el tiempo entre ticks con performance.now(): avanza
-    // aunque el navegador congele Date.now() o estrangule los temporizadores.
+    // El tiempo de carrera se acumula entre ticks con performance.now()
+    // solo para la frase del ganador: ya no hay contador en pantalla.
     setInterval(function () {
       var now = performance.now();
       if (core.state.phase === 'playing') {
         if (clockLastTick) raceElapsedMs += now - clockLastTick;
-        $('raceClock').textContent = '⏱ ' + fmtTime(raceElapsedMs);
       }
       clockLastTick = now;
     }, 250);
@@ -1438,7 +1401,6 @@
       core.state.players.forEach(function (p) {
         if (p.isAI) aiTimers[p.id] = { last: performance.now(), think: 500 + Math.random() * 700 };
       });
-      $('raceClock').textContent = '⏱ 0:00';
     });
     Transport.on('throw', function (e) {
       renderPositions(e.player.id);
@@ -1944,7 +1906,7 @@
       this.textContent = muted ? '🔇 Silencio' : '🔊 Sonido';
     });
 
-    /* --- ajustes: panel desplegable del botón ⚙ (arriba a la derecha) --- */
+    /* --- ajustes: panel desplegable del botón ⚙ (cabecera de la pista) --- */
     var settingsPanel = $('settingsPanel');
     function closeSettings() {
       settingsPanel.hidden = true;
