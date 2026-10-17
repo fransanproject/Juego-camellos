@@ -100,10 +100,9 @@
       /* ---------- status bar ---------- */
       .statusbar {
         position: relative;
-        display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px;
         padding: 10px 14px; margin-bottom: 16px;
       }
-      .status-msg { font-weight: 800; color: var(--ink-soft); flex: 1 1 170px; min-width: 140px; }
       .clock { font-weight: 900; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
       .icon-btn {
         font: inherit; font-weight: 900; cursor: pointer; font-size: .9rem;
@@ -124,11 +123,13 @@
       .settings-panel .icon-btn { width: 100%; text-align: left; padding: 9px 12px; }
 
       /* ---------- race track ---------- */
-      /* La pista ocupa SIEMPRE lo mismo, corran 2 camellos o 8: el
-         contenedor de carriles tiene una altura fija y los carriles se
-         reparten ese espacio. Lo único que cambia con el número de
-         jugadores es el tamaño de los camellos (y lo compacta que va
-         su etiqueta), nunca el tamaño de la pista ni el del tablero. */
+      /* La representación de la carrera se encoge al añadir jugadores:
+         la altura total de la pista (--lanes-total, que JS ajusta en
+         cada partida según el nº de corredores) baja escalón a
+         escalón, así que con más camellos cada carril —y el camello
+         que corre en él— es más pequeño. El tablero NO depende de
+         esto: su tamaño sale solo del alto de la pantalla, siempre
+         igual corran 2 o corran 8. */
       .track-card { padding: 10px 12px 6px; margin-bottom: 16px; --lanes-total: 176px; }
       .track-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px; }
       .track-head h2 { font-family: "Lilita One", cursive; font-weight: 400; margin: 0; font-size: 1.08rem; }
@@ -139,7 +140,6 @@
       .lane-top { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; min-height: 0; }
       .lane-name { font-weight: 900; display: inline-flex; gap: 8px; align-items: center; }
       .lane-name .dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--card-edge); flex: none; }
-      .lane-pos { font-weight: 900; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
       .lane-run {
         position: relative; flex: 1 1 auto; min-height: 16px; border-radius: 10px;
         background:
@@ -171,7 +171,6 @@
       .camel img { width: 100%; height: 100%; object-fit: contain; display: block; }
       .camel.running img { animation: gallop .34s ease-in-out infinite; }
       @keyframes gallop { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(-1.6deg); } }
-      .step-marks { display: flex; justify-content: space-between; padding: 3px 2px 0; font-size: .68rem; font-weight: 800; color: var(--ink-soft); }
       .legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px 0 4px; }
       .legend span {
         display: inline-flex; align-items: center; gap: 7px; font-weight: 900; font-size: .9rem;
@@ -212,7 +211,6 @@
       .track-card.many .lane-name .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .track-card.many .lane-name .dot { width: 9px; height: 9px; border-width: 1.5px; }
       .track-card.many .lane-name small { display: none; }
-      .track-card.many .lane-pos { font-size: .62rem; flex: none; }
       .track-card.many .chips-badge { font-size: .58rem; padding: 0 4px; border-width: 1.5px; flex: none; }
       .track-card.many .finish-label { display: none; }
       .track-card.many .finish-flag { font-size: 10px; top: 1px; right: 3px; }
@@ -250,11 +248,6 @@
         80% { opacity: 1; }
         100% { opacity: 0; transform: translate(-50%, -110%) scale(1); }
       }
-      .board-hint {
-        padding: 10px 14px 12px; font-weight: 800; color: var(--ink-soft);
-        border-top: 2px dashed var(--track-line); text-align: center; font-size: .92rem;
-      }
-
       .btn {
         font-family: "Lilita One", cursive; font-weight: 400; letter-spacing: .02em;
         font-size: 1.05rem; cursor: pointer; color: #fff;
@@ -372,24 +365,21 @@
         .icon-btn { padding: 5px 9px; font-size: .85rem; }
         .track-card { margin-bottom: 8px; padding: 8px 10px 4px; --lanes-total: 136px; }
         .camel { max-width: 32px; max-height: 32px; }
-        .step-marks { display: none; }
         .legend.compact { margin-top: 4px; }
         .legend.compact span { font-size: .72rem; }
         .track-card.many .lane-run { min-height: 10px; }
         .board-wrap { display: flex; justify-content: center; }
         /* Tablero INAMOVIBLE: su tamaño sale solo del alto útil de la
-           pantalla (fijado al cargar) menos un descuento fijo — el de
-           la barra de estado, la pista (que ya mide siempre lo mismo)
-           y el pie del tablero. El número de jugadores NO entra en la
-           fórmula: con 2 camellos el tablero mide exactamente igual
-           que con 8; lo que se encoge es el camello, no el campo.
-           En móvil el descuento es más pequeño que antes (la pista, la
-           barra y los márgenes se han compactado) para que el tablero
-           crezca y en las pantallas altas llegue a ocupar todo el
-           ancho disponible; y la zona de lanzamiento va más arriba
-           dentro de la mesa, lejos de los botones del móvil. */
+           pantalla (fijado al cargar) menos un descuento fijo. El
+           número de jugadores NO entra en la fórmula: con 2 camellos
+           el tablero mide exactamente igual que con 8; lo que se
+           encoge al añadir corredores es la representación de la
+           carrera (pista y camellos), nunca el campo de bolas.
+           En móvil el descuento deja que el tablero crezca y en las
+           pantallas altas llegue a ocupar todo el ancho disponible;
+           y la zona de lanzamiento va más arriba dentro de la mesa,
+           lejos de los botones del móvil. */
         canvas#board { flex: none; width: min(100%, calc((var(--appH) - 340px - env(safe-area-inset-bottom, 0px)) * 0.74074)); }
-        .board-hint { padding: 6px 8px 8px; font-size: .8rem; }
         .awning { height: 16px; }
         .board-card .garland { height: 11px; margin-top: 0; }
       }
@@ -403,9 +393,8 @@
   </head>
   <body class="scroll-locked">
     <div class="wrap">
-      <!-- Status bar: solo mensaje, reloj y el botón de ajustes -->
+      <!-- Status bar: solo el reloj de carrera y el botón de ajustes -->
       <div class="card statusbar">
-        <span class="status-msg" id="statusMsg">Elige un modo para empezar.</span>
         <span class="clock" id="raceClock" aria-label="Tiempo de carrera">⏱ 0:00</span>
         <button class="icon-btn" id="settingsBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Abrir los ajustes">⚙ Ajustes</button>
         <div class="settings-panel" id="settingsPanel" hidden>
@@ -424,7 +413,6 @@
               <span>Meta: 30 puntos · a la vez, sin turnos</span>
             </div>
             <div id="lanes"></div>
-            <div class="step-marks"><span>Salida</span><span>10</span><span>20</span><span>Meta</span></div>
             <div class="legend compact" style="justify-content:flex-start;">
               <span><i style="background:#fdf6e3"></i> 1 paso</span>
               <span><i style="background:#57a8d8"></i> 2 pasos</span>
@@ -442,7 +430,6 @@
               <canvas id="board" width="400" height="540"></canvas>
               <div class="score-pop" id="scorePop">+3</div>
             </div>
-            <div class="board-hint" id="boardHint">Cuando empiece la partida, desliza el dedo hacia arriba sobre el tablero para lanzar tu bola: la dirección y la velocidad del deslizamiento mandan. Sin turnos: lanza en cuanto tu bola vuelva.</div>
           </section>
         </div>
       </div>
@@ -1316,7 +1303,17 @@
 
     function buildLanes() {
       lanesEl.innerHTML = '';
-      document.querySelector('.track-card').classList.toggle('many', core.state.players.length > 4);
+      var trackCard = document.querySelector('.track-card');
+      trackCard.classList.toggle('many', core.state.players.length > 4);
+      // Con más corredores, la representación de la carrera se hace
+      // más pequeña: la altura total de la pista baja escalón a
+      // escalón y cada carril (y su camello) se encoge con ella.
+      // El tablero no se entera: su tamaño no depende de esto.
+      var nPlayers = core.state.players.length;
+      var totals = window.matchMedia('(max-width: 919px)').matches
+        ? [136, 136, 136, 132, 126, 120, 114, 108, 104]
+        : [176, 176, 176, 170, 162, 154, 146, 138, 132];
+      trackCard.style.setProperty('--lanes-total', totals[Math.min(nPlayers, 8)] + 'px');
       // Los carriles se pintan en el orden sorteado (slot), no en el
       // orden de llegada: cada partida la pista se reparte de nuevo.
       var ordered = core.state.players.slice().sort(function (a, b) { return (a.slot || 0) - (b.slot || 0); });
@@ -1328,7 +1325,6 @@
             '<span class="lane-name"><span class="dot" style="background:' + PLAYER_COLORS[p.colorIdx] + '"></span>' +
             '<span class="lname"></span>' + (p.isAI ? ' <small style="color:var(--ink-soft)">(IA)</small>' : '') + '</span>' +
             '<span class="chips-badge" id="chips-' + p.id + '" hidden>🟡 0</span>' +
-            '<span class="lane-pos" id="pos-' + p.id + '">0 / ' + GOAL_STEPS + '</span>' +
           '</div>' +
           '<div class="lane-run">' +
             '<span class="finish-flag" aria-hidden="true">🏁</span>' +
@@ -1343,12 +1339,10 @@
     function renderPositions(animatePlayerId) {
       core.state.players.forEach(function (p) {
         var camel = $('camel-' + p.id);
-        var label = $('pos-' + p.id);
         if (!camel) return;
         var pct = (p.pos / GOAL_STEPS) * 100;
         camel.style.left = pct + '%';
         camel.style.transform = 'translateX(-' + pct + '%)';
-        if (label) label.textContent = p.pos + ' / ' + GOAL_STEPS;
         if (animatePlayerId === p.id) {
           camel.classList.add('running');
           setTimeout(function () { camel.classList.remove('running'); }, 850);
@@ -1356,7 +1350,6 @@
       });
     }
 
-    function setMsg(text) { $('statusMsg').textContent = text; }
     function fmtTime(ms) {
       var s = Math.floor(ms / 1000);
       return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
@@ -1371,15 +1364,6 @@
       }
       clockLastTick = now;
     }, 250);
-
-    function updateHint() {
-      var s = core.state;
-      $('boardHint').textContent =
-        s.phase !== 'playing' ? 'La partida ha terminado.' :
-        s.mode === 'online' ? 'Sala ' + (Room.code || '') + ' · online: desliza el dedo hacia arriba para lanzar tu bola y mira la pista: los camellos de todos avanzan en directo con cada acierto.' :
-        s.mode === 'duo' ? '¡A la vez! Cada uno desliza el dedo hacia arriba desde su zona de lanzamiento (la de su color: las posiciones se sortean en cada partida) para lanzar: cuanto más rápido el deslizamiento, más fuerte el tiro. En cuanto la bola vuelve, a lanzar otra.' :
-        'Desliza el dedo hacia arriba sobre el tablero para lanzar tu bola: la dirección y la velocidad del deslizamiento mandan. Los camellos de la IA lanzan a la vez que tú: en cuanto tu bola vuelva, a por otra.';
-    }
 
     function showScorePop(points, holePos) {
       var pop = $('scorePop');
@@ -1407,19 +1391,12 @@
 
     Board.setOnSettle(function (ownerId, points, hole) {
       if (core.state.phase !== 'playing') return;
-      var thrower = null;
-      core.state.players.forEach(function (p) { if (p.id === ownerId) thrower = p; });
       if (points > 0) Sound.score(points); else Sound.miss();
       showScorePop(points, hole);
       Transport.dispatch({ type: 'THROW', playerId: ownerId, points: points });
       if (core.state.mode === 'online' && Room.channel) {
         // Evento diminuto a toda la sala: "este jugador avanza N pasos".
         Room.channel.send({ type: 'broadcast', event: 'throw', payload: { pid: ownerId, points: points } });
-      }
-      if (thrower) {
-        setMsg(points > 0
-          ? '¡' + thrower.name + ' cuela un ' + points + '! Su camello avanza.'
-          : thrower.name + ' falla: la bola se va fuera.');
       }
     });
 
@@ -1462,27 +1439,15 @@
         if (p.isAI) aiTimers[p.id] = { last: performance.now(), think: 500 + Math.random() * 700 };
       });
       $('raceClock').textContent = '⏱ 0:00';
-      updateHint();
-      if (core.state.mode === 'online' && Series.active) {
-        setMsg('🌐 ' + seriesLabel() + ' de la serie · el ganador se lleva una ficha 🟡. ¡A lanzar!');
-      } else {
-        setMsg('🎲 Posiciones sorteadas al azar: cada uno lanza desde la zona de su color. ¡A la vez, sin parar!');
-      }
     });
     Transport.on('throw', function (e) {
       renderPositions(e.player.id);
-      if (core.state.mode === 'online' && e.player.id !== Room.myId && core.state.phase === 'playing') {
-        setMsg(e.points > 0
-          ? '¡' + e.player.name + ' cuela un ' + e.points + '! Su camello avanza.'
-          : e.player.name + ' falla su bola.');
-      }
     });
     Transport.on('win', function (e) {
       Board.setActive(false);
       // La hoja del ganador tarda 900 ms en aparecer: la pantalla
       // sigue bloqueada mientras tanto, que no se mueva al celebrarlo.
       document.body.classList.add('scroll-locked');
-      updateHint();
       $('winnerName').textContent = '¡' + e.player.name + ' gana!';
       $('winnerName').style.color = PLAYER_COLORS[e.player.colorIdx];
       $('winnerDetail').textContent = 'Su camello ha cruzado la meta en ' + fmtTime(raceElapsedMs) + '.';
@@ -1533,18 +1498,15 @@
             : '🧸 ¡Empate a ' + topChips + (topChips === 1 ? ' ficha' : ' fichas') + '! El oso de peluche se comparte entre ' + champions.map(function (c) { return c.player.name; }).join(' y ') + '.';
           $('finalRanking').hidden = false;
           $('againBtn').textContent = Room.amHost ? 'Nueva serie' : 'Pedir nueva serie';
-          setMsg('🏆 Serie terminada: ' + (champions.length === 1 ? champions[0].player.name + ' se lleva el oso de peluche 🧸' : 'empate por el oso de peluche 🧸.'));
         } else {
           var mine = Series.chips[e.player.id] || 0;
           info.textContent = '🟡 ' + e.player.name + ' gana una ficha (lleva ' + mine + (mine === 1 ? ' ficha' : ' fichas') + ') · ' + seriesLabel() + ' terminada, quedan ' + (Series.total - Series.current) + '.';
           $('againBtn').textContent = Room.amHost
             ? 'Siguiente partida (' + (Series.current + 1) + ' de ' + Series.total + ')'
             : 'Pedir la siguiente partida';
-          setMsg('🏁 ' + e.player.name + ' gana la partida ' + Series.current + ' de ' + Series.total + ' y se lleva una ficha 🟡.');
         }
       } else {
         $('againBtn').textContent = online ? (Room.amHost ? 'Revancha' : 'Pedir revancha') : 'Jugar otra vez';
-        setMsg('🏁 ' + e.player.name + ' gana la carrera en ' + fmtTime(raceElapsedMs) + '.');
       }
       $('winMenuBtn').textContent = online ? 'Salir de la sala' : 'Cambiar modo';
       Sound.win();
@@ -1823,7 +1785,6 @@
       $('winOverlay').hidden = true;
       $('startOverlay').hidden = true;
       Transport.dispatch({ type: 'START', mode: 'online', players: defs });
-      setMsg('🌐 ' + seriesLabel() + ' en la sala ' + Room.code + ' con ' + defs.length + ' camellos. ¡A lanzar!');
     }
 
     function startOnlineRaceFromLobby() {
@@ -1961,7 +1922,8 @@
     });
     $('restartBtn').addEventListener('click', function () {
       if (core.state.mode === 'online') {
-        setMsg('En la sala online no hay reinicio local: al terminar, el anfitrión lanza la revancha.');
+        // En la sala online no hay reinicio local: al terminar, el
+        // anfitrión es quien lanza la revancha para todos.
         return;
       }
       if (gameConfig) {
@@ -1974,7 +1936,6 @@
       Board.setActive(false);
       $('winOverlay').hidden = true;
       $('startOverlay').hidden = false;
-      setMsg('Elige un modo para empezar.');
     }
     $('menuBtn').addEventListener('click', toMenu);
     $('winMenuBtn').addEventListener('click', toMenu);
